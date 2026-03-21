@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Brush Battle",
+    "slug": "brush-battle",
+    "ios": {
+      "bundleIdentifier": "com.brushbattle"
+    },
+    "android": {
+      "package": "com.brushbattle"
+    }
+  }
+}

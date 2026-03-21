@@ -1,0 +1,32 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '../utils/colors';
+import { useLanguage } from '../context/LanguageContext';
+
+interface BRBalanceCardProps {
+  brScore: number;
+}
+
+export const BRBalanceCard: React.FC<BRBalanceCardProps> = ({ brScore }) => {
+  const { t } = useLanguage();
+  return (
+    <View style={styles.card}>
+      <Text style={styles.label}>{t('brScoreLabel')}</Text>
+      <Text style={styles.value}>💎 {brScore}</Text>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginBottom: 12,
+  },
+  label: { fontSize: 13, color: colors.muted, marginBottom: 4, fontWeight: '600' },
+  value: { fontSize: 24, fontWeight: '800', color: colors.primary },
+});
+
