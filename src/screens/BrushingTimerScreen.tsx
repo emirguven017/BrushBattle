@@ -7,6 +7,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
@@ -26,7 +27,7 @@ const COUNTDOWN_BOUNDARIES = [90, 60, 30] as const;
 const COUNTDOWN_DURATION_MS = 700;
 
 export const BrushingTimerScreen: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { t } = useLanguage();
   const nav = useNavigation();
   const route = useRoute();
@@ -50,12 +51,16 @@ export const BrushingTimerScreen: React.FC = () => {
       if (!finishedSetRef.current) {
         finishedSetRef.current = true;
         setFinished(true);
+        // Fırçalama bittiği anda seans hatırlatmalarını iptal et (bildirim gelmesin)
+        if (user) {
+          NotificationService.cancelSessionReminders(user.id, session.sessionType).catch(() => {});
+        }
       }
       return;
     }
     const timer = setInterval(() => setSeconds((s) => s - 1), 1000);
     return () => clearInterval(timer);
-  }, [session, seconds]);
+  }, [session, seconds, user]);
 
   // Trigger countdown when crossing 90, 60, 30
   useEffect(() => {
@@ -122,10 +127,21 @@ export const BrushingTimerScreen: React.FC = () => {
     if (!session || !user) return;
     try {
       await BrushingService.completeSession(session, user);
+      await refreshUser(); // Güncel puanları göstermek için
       await NotificationService.cancelSessionReminders(user.id, session.sessionType);
-      nav.goBack();
+      await NotificationService.cancelMissedReminder(user.id, session.sessionType);
+      if (nav.canGoBack()) {
+        nav.goBack();
+      } else {
+        (nav as { navigate: (name: string) => void }).navigate('HomeMain');
+      }
     } catch (e) {
-      Alert.alert(t('error'), e instanceof Error ? e.message : t('couldNotSave'));
+      const msg = e instanceof Error ? e.message : t('couldNotSave');
+      const isPermission = typeof msg === 'string' && msg.toLowerCase().includes('permission');
+      Alert.alert(
+        t('error'),
+        isPermission ? t('firestorePermissionError') : msg
+      );
     }
   };
 
@@ -150,7 +166,7 @@ export const BrushingTimerScreen: React.FC = () => {
           {seconds <= 0 ? (
             <>
               <View style={styles.completeSection}>
-                <Text style={styles.completeEmoji}>🎉</Text>
+                <Ionicons name="sparkles" size={48} color={colors.primary} style={styles.completeEmoji} />
                 <Text style={styles.completeTitle}>{t('timeUp')}</Text>
                 <Text style={styles.completeSubtitle}>
                   {t('finishQuestion')}
@@ -160,14 +176,20 @@ export const BrushingTimerScreen: React.FC = () => {
                   onPress={handleBrushed}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.btnText}>✅ {t('finishBrushing')}</Text>
+                  <View style={styles.btnContent}>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.white} />
+                  <Text style={styles.btnText}> {t('finishBrushing')}</Text>
+                </View>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.btnSecondary}
                   onPress={handleRestart}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.btnSecondaryText}>🔄 {t('repeatBrushing')}</Text>
+                  <View style={styles.btnContent}>
+                  <Ionicons name="refresh" size={18} color={colors.primary} />
+                  <Text style={styles.btnSecondaryText}> {t('repeatBrushing')}</Text>
+                </View>
                 </TouchableOpacity>
               </View>
               <View style={styles.timerSection}>
@@ -228,8 +250,11 @@ const styles = StyleSheet.create({
     minHeight: 200,
   },
   completeEmoji: {
-    fontSize: 48,
     marginBottom: 12,
+  },
+  btnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   completeTitle: {
     fontSize: 22,

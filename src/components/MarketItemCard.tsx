@@ -1,8 +1,20 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../utils/colors';
-import type { MarketItem } from '../types';
+import type { MarketItem, MarketItemId } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+
+const ITEM_ICONS: Record<MarketItemId, keyof typeof Ionicons.glyphMap> = {
+  freeze: 'snow',
+  score_drop: 'trending-down',
+  shield: 'shield-checkmark',
+  streak_saver: 'bookmark',
+  double_points: 'flash',
+  rank_booster: 'rocket',
+  bonus_points: 'star',
+  champion_crown: 'trophy',
+};
 
 interface MarketItemCardProps {
   item: MarketItem;
@@ -18,17 +30,23 @@ export const MarketItemCard: React.FC<MarketItemCardProps> = ({
   onUse,
 }) => {
   const { t } = useLanguage();
+  const iconName = ITEM_ICONS[item.id] ?? 'gift';
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <Text style={styles.icon}>{item.icon}</Text>
+        <View style={styles.iconWrap}>
+          <Ionicons name={iconName} size={28} color={colors.primary} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{item.title}</Text>
           <Text style={styles.desc}>{item.description}</Text>
         </View>
       </View>
       <View style={styles.bottomRow}>
-        <Text style={styles.cost}>💎 {item.cost}</Text>
+        <View style={styles.costRow}>
+          <Ionicons name="diamond" size={16} color={colors.primary} />
+          <Text style={styles.cost}> {item.cost}</Text>
+        </View>
         <Text style={styles.owned}>{t('owned')}: {owned}</Text>
       </View>
       <View style={styles.actions}>
@@ -57,7 +75,8 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
   },
   topRow: { flexDirection: 'row', gap: 10 },
-  icon: { fontSize: 24 },
+  iconWrap: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  costRow: { flexDirection: 'row', alignItems: 'center' },
   title: { fontSize: 16, fontWeight: '800', color: colors.text },
   desc: { fontSize: 13, color: colors.muted, marginTop: 2 },
   bottomRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },

@@ -33,6 +33,30 @@ const STREAK_BR_BONUSES: Record<number, number> = {
   7: 20
 };
 
+const LATE_THRESHOLD_MS = 60 * 60 * 1000; // 1 saat
+
+/** Seans planlanan saatten 1 saatten fazla geç tamamlandıysa true. Yerel saatle karşılaştırır. */
+const isSessionCompletedLate = (
+  session: { date: string; sessionType: 'morning' | 'evening'; completedAt?: number },
+  user: { morningTime?: string; eveningTime?: string }
+): boolean => {
+  try {
+    const timeStr = session.sessionType === 'morning' ? (user.morningTime ?? '08:00') : (user.eveningTime ?? '21:00');
+    const parts = session.date.split('-');
+    const [year, month, day] = parts.map(Number);
+    const timeParts = timeStr.split(':');
+    const hour = Number(timeParts[0]) || 0;
+    const minute = Number(timeParts[1]) || 0;
+    if (!year || !month || !day || parts.length < 3) return false;
+    const scheduledMs = new Date(year, month - 1, day, hour, minute, 0).getTime();
+    if (Number.isNaN(scheduledMs)) return false;
+    const completedMs = session.completedAt ?? Date.now();
+    return completedMs - scheduledMs > LATE_THRESHOLD_MS;
+  } catch {
+    return false; // Parse hatasında gecikme sayma, puan ver
+  }
+};
+
 export const BrushingService = {
   async getTodaySessions(userId: string): Promise<BrushSession[]> {
     const q = query(
@@ -85,47 +109,73 @@ export const BrushingService = {
     if (session.status === 'completed') return;
 
     const sessionRef = doc(db, 'brushSessions', session.id);
-
     const userRef = doc(db, 'users', user.id);
+
+    // 1 saatten fazla geç tamamlandıysa puan ve BR verme (ama seans tamamlandı sayılır)
+    const completedAt = Date.now();
+    const lateSession = {
+      date: session.date,
+      sessionType: session.sessionType,
+      completedAt
+    };
+    const isLate = isSessionCompletedLate(lateSession, user);
+
     const frozen = await EffectService.hasActiveEffect(user.id, 'frozen');
     const hasDoublePoints = await EffectService.hasActiveEffect(user.id, 'double_points');
     const weeklyBuff = await EffectService.hasActiveEffect(user.id, 'bonus_points');
     const pointMultiplier = hasDoublePoints ? 2 : 1;
     const extraMultiplier = Number(weeklyBuff?.meta?.multiplier ?? 1);
-    const pointsToGrant = frozen ? 0 : Math.round(SESSION_POINTS * pointMultiplier * extraMultiplier);
+    const pointsToGrant = isLate || frozen ? 0 : Math.round(SESSION_POINTS * pointMultiplier * extraMultiplier);
 
-    // Comeback mekanigi: dusuk puanli kullanicilar ufak BR destegi alir.
-    const comebackBr = (user.points ?? 0) < 100 ? 2 : 0;
+    // Comeback mekanigi: dusuk puanli kullanicilar ufak BR destegi alir. Geç tamamlanmışsa BR yok.
+    const comebackBr = isLate ? 0 : (user.points ?? 0) < 100 ? 2 : 0;
+    const brToAdd = isLate ? 0 : SESSION_BR + comebackBr;
 
     await updateDoc(sessionRef, {
       status: 'completed',
-      completedAt: Date.now(),
+      completedAt,
       pointsEarned: pointsToGrant
     });
 
-    // Kullanıcıya seans puanı ekle
+    // Kullanıcıya seans puanı ekle (geç tamamlanmışsa ekleme)
     if (pointsToGrant > 0) {
       await updateDoc(userRef, { points: increment(pointsToGrant) });
-      await WeeklyRewardService.addWeeklyPoints({
-        groupId: user.groupId,
-        userId: user.id,
-        username: user.username,
-        streak: user.streak ?? 0,
-        points: pointsToGrant,
-      });
+      try {
+        await WeeklyRewardService.addWeeklyPoints({
+          groupId: user.groupId,
+          userId: user.id,
+          username: user.username,
+          streak: user.streak ?? 0,
+          points: pointsToGrant,
+        });
+      } catch {
+        // Gruba yazma izni yoksa veya grup silinmişse devam et
+      }
     }
-    await InventoryService.addBrScore(user.id, SESSION_BR + comebackBr);
-    await MarketService.logTransaction({
-      userId: user.id,
-      itemId: 'double_points',
-      actionType: 'reward',
-      message: `Brushing reward: +${SESSION_BR + comebackBr} BR`,
-    });
-    if (hasDoublePoints) {
-      await EffectService.consumeOneUse(user.id, 'double_points');
+    if (brToAdd > 0) {
+      await InventoryService.addBrScore(user.id, brToAdd);
+    }
+    if (brToAdd > 0) {
+      try {
+        await MarketService.logTransaction({
+          userId: user.id,
+          itemId: 'double_points',
+          actionType: 'reward',
+          message: `Brushing reward: +${brToAdd} BR`,
+        });
+      } catch {
+        // İşlem kaydı başarısız olsa da seans tamamlandı sayılır
+      }
+    }
+    if (hasDoublePoints && pointsToGrant > 0) {
+      try {
+        await EffectService.consumeOneUse(user.id, 'double_points');
+      } catch {
+        // Etki tüketilemezse devam et
+      }
     }
 
-    // Gün içindeki iki seans da tamamlandı mı kontrol et
+    // Gün içindeki iki seans da tamamlandı mı ve ikisi de vaktinde mi kontrol et
     const todaySessions = await this.getTodaySessions(user.id);
     const morningDone = todaySessions.find(
       s => s.sessionType === 'morning' && s.status === 'completed'
@@ -135,10 +185,13 @@ export const BrushingService = {
     );
 
     const bothCompleted = Boolean(morningDone && eveningDone);
+    const morningOnTime = morningDone ? !isSessionCompletedLate(morningDone, user) : false;
+    const eveningOnTime = eveningDone ? !isSessionCompletedLate(eveningDone, user) : false;
+    const bothOnTime = morningOnTime && eveningOnTime;
 
-    if (bothCompleted) {
-      // Günlük bonus daha önce uygulanmadıysa uygula
-      const bonusCarrier = eveningDone; // akşam seansı üzerinde flag tutalım
+    if (bothCompleted && bothOnTime) {
+      // Günlük bonus daha önce uygulanmadıysa uygula (sadece ikisi de vaktinde tamamlandıysa)
+      const bonusCarrier = eveningDone;
       if (bonusCarrier && !bonusCarrier.dayBonusApplied) {
         await updateDoc(userRef, { points: increment(DAILY_BONUS_POINTS) });
         await WeeklyRewardService.addWeeklyPoints({

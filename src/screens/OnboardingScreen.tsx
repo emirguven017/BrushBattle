@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
+import { TimePicker24 } from '../components/TimePicker24';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 export const OnboardingScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const { user, refreshUser } = useAuth();
   const [username, setUsername] = useState(user?.username ?? '');
   const [morningTime, setMorningTime] = useState(user?.morningTime ?? '08:00');
@@ -14,6 +19,8 @@ export const OnboardingScreen: React.FC = () => {
   const [groupName, setGroupName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [err, setErr] = useState('');
+  const [showMorningPicker, setShowMorningPicker] = useState(false);
+  const [showEveningPicker, setShowEveningPicker] = useState(false);
 
   const handleFinish = async () => {
     if (!user?.id) return;
@@ -34,34 +41,120 @@ export const OnboardingScreen: React.FC = () => {
       }
       await refreshUser();
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'Bir hata oluştu');
+      setErr(e instanceof Error ? e.message : t('errorGeneric'));
     }
   };
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.titleBar}>
-        <Text style={styles.title}>Hoş geldin! 🪥</Text>
+    <KeyboardAvoidingView
+      style={[styles.wrapper, { backgroundColor: colors.primary }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+        <View style={styles.titleBar}>
+          <Text style={styles.title}>{t('welcomeTitle')}</Text>
+        </View>
       </View>
-    <View style={styles.container}>
-      <TextInput style={styles.input} placeholder="Kullanıcı adı" value={username} onChangeText={setUsername} />
-      <TextInput style={styles.input} placeholder="Sabah saati (örn. 08:00)" value={morningTime} onChangeText={setMorningTime} />
-      <TextInput style={styles.input} placeholder="Akşam saati (örn. 21:00)" value={eveningTime} onChangeText={setEveningTime} />
-      <Text style={styles.sub}>Grup oluştur veya koda ile katıl</Text>
-      <TextInput style={styles.input} placeholder="Yeni grup adı" value={groupName} onChangeText={setGroupName} />
-      <TextInput style={styles.input} placeholder="Davet kodu" value={inviteCode} onChangeText={setInviteCode} />
-      {err ? <Text style={styles.error}>{err}</Text> : null}
-      <TouchableOpacity style={styles.btn} onPress={handleFinish}>
-        <Text style={styles.btnText}>Başla</Text>
-      </TouchableOpacity>
-    </View>
-    </View>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TextInput style={styles.input} placeholder={t('usernamePlaceholder')} value={username} onChangeText={setUsername} />
+        <View>
+          <Text style={styles.timeLabel}>{t('morningTime')}</Text>
+          <TouchableOpacity
+            style={styles.timeButton}
+            onPress={() => setShowMorningPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.timeButtonText}>🕐 {morningTime}</Text>
+            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+          </TouchableOpacity>
+          {showMorningPicker && (
+            <View style={styles.pickerContainer}>
+              <TimePicker24 value={morningTime} onChange={setMorningTime} />
+              <TouchableOpacity
+                style={styles.pickerDoneBtn}
+                onPress={() => setShowMorningPicker(false)}
+              >
+                <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        <View>
+          <Text style={styles.timeLabel}>{t('eveningTime')}</Text>
+          <TouchableOpacity
+            style={styles.timeButton}
+            onPress={() => setShowEveningPicker(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.timeButtonText}>🌙 {eveningTime}</Text>
+            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+          </TouchableOpacity>
+          {showEveningPicker && (
+            <View style={styles.pickerContainer}>
+              <TimePicker24 value={eveningTime} onChange={setEveningTime} />
+              <TouchableOpacity
+                style={styles.pickerDoneBtn}
+                onPress={() => setShowEveningPicker(false)}
+              >
+                <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        <View style={styles.groupCard}>
+          <View style={styles.groupHeader}>
+            <Text style={styles.groupIcon}>👥</Text>
+            <Text style={styles.groupTitle}>{t('groupCreateOrJoin')}</Text>
+            <Text style={styles.groupSubtitle}>{t('groupOptionalHint')}</Text>
+          </View>
+          <View style={styles.groupCreateRow}>
+            <Text style={styles.groupLabel}>✨ {t('newGroupName')}</Text>
+            <TextInput
+              style={styles.groupInput}
+              placeholder={t('newGroupName')}
+              placeholderTextColor={colors.muted}
+              value={groupName}
+              onChangeText={setGroupName}
+            />
+          </View>
+          <View style={styles.groupDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{t('or')}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          <View style={styles.groupJoinRow}>
+            <Text style={styles.groupLabel}>🔗 {t('inviteCode')}</Text>
+            <TextInput
+              style={styles.groupInput}
+              placeholder={t('inviteCode')}
+              placeholderTextColor={colors.muted}
+              value={inviteCode}
+              onChangeText={setInviteCode}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+          </View>
+        </View>
+        {err ? <Text style={styles.error}>{err}</Text> : null}
+        <TouchableOpacity style={styles.btn} onPress={handleFinish}>
+          <Text style={styles.btnText}>{t('startBtn')}</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
-  container: { flex: 1, backgroundColor: colors.background, padding: 24, justifyContent: 'center' },
+  wrapper: { flex: 1 },
+  greenHeader: { backgroundColor: colors.primary },
+  scrollView: { flex: 1, backgroundColor: colors.background },
+  container: { padding: 24, paddingBottom: 40 },
   titleBar: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
@@ -77,7 +170,114 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: colors.white
   },
-  sub: { fontSize: 14, color: colors.muted, marginBottom: 8 },
+  timeLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.muted,
+    marginBottom: 6
+  },
+  timeButton: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    backgroundColor: colors.white
+  },
+  timeButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text
+  },
+  timeButtonHint: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 4
+  },
+  pickerContainer: {
+    marginBottom: 12
+  },
+  pickerDoneBtn: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    alignItems: 'center'
+  },
+  pickerDoneText: {
+    color: colors.white,
+    fontWeight: '600'
+  },
+  groupCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 8,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6
+  },
+  groupHeader: {
+    alignItems: 'center',
+    marginBottom: 20
+  },
+  groupIcon: {
+    fontSize: 40,
+    marginBottom: 8
+  },
+  groupTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.primary,
+    textAlign: 'center'
+  },
+  groupSubtitle: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 4
+  },
+  groupCreateRow: {
+    marginBottom: 4
+  },
+  groupJoinRow: {
+    marginTop: 4
+  },
+  groupLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8
+  },
+  groupInput: {
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: colors.text,
+    backgroundColor: colors.background
+  },
+  groupDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.cardBorder
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.muted
+  },
   error: { color: colors.error, marginBottom: 8 },
   btn: { backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
   btnText: { color: colors.white, fontWeight: '600' }

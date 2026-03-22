@@ -5,7 +5,8 @@ import {
   User as FirebaseUser,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signOut
+  signOut,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
@@ -20,6 +21,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<void>;
   logIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -46,9 +48,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const ensureFirestoreUser = async (fbUser: FirebaseUser): Promise<User | null> => {
+    const existing = await firebaseUserToAppUser(fbUser);
+    if (existing) return existing;
+
+    try {
+      const email = fbUser.email ?? '';
+      const usernameFallback = email ? email.split('@')[0] || 'User' : 'User';
+      const base: Omit<User, 'id'> = {
+        username: usernameFallback,
+        email,
+        points: 0,
+        streak: 0,
+        morningTime: '08:00',
+        eveningTime: '21:00',
+        onboardingComplete: false
+      };
+      const uid = fbUser.uid;
+      await setDoc(doc(db, 'users', uid), { ...base, id: uid });
+      await setDoc(doc(db, 'userBalances', uid), { userId: uid, brScore: 0 });
+      await setDoc(doc(db, 'userInventory', uid), { userId: uid, items: {}, updatedAt: Date.now() });
+      await setDoc(doc(db, 'userEffects', uid), { userId: uid, activeEffects: [], updatedAt: Date.now() });
+      await setDoc(doc(db, 'userStats', uid), { userId: uid, totalWins: 0, badges: [] });
+      return { id: uid, ...base };
+    } catch (e) {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const fetchUser = async (fbUser: FirebaseUser) => {
-      const appUser = await firebaseUserToAppUser(fbUser);
+      const appUser = await ensureFirestoreUser(fbUser);
       setUser(appUser);
     };
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
@@ -84,8 +114,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logIn = async (email: string, password: string, rememberMe = true) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
-    const appUser = await firebaseUserToAppUser(cred.user);
-    setUser(appUser ?? null);
+    const appUser = await ensureFirestoreUser(cred.user);
+    if (!appUser) {
+      await signOut(auth);
+      const err = new Error('Profile creation failed');
+      (err as Error & { code?: string }).code = 'auth/profile-creation-failed';
+      throw err;
+    }
+    setUser(appUser);
     if (rememberMe) {
       await AsyncStorage.setItem(REMEMBER_ME_EMAIL_KEY, email);
     } else {
@@ -98,13 +134,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim());
+  };
+
   const refreshUser = async () => {
     const fbUser = auth.currentUser;
-    if (fbUser) await firebaseUserToAppUser(fbUser).then(setUser);
+    if (fbUser) await ensureFirestoreUser(fbUser).then((u) => u && setUser(u));
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, refreshUser, signUp, logIn, logOut }}>
+    <AuthContext.Provider value={{ user, loading, refreshUser, signUp, logIn, logOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

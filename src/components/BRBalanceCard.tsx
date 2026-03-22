@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../utils/colors';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -12,7 +13,10 @@ export const BRBalanceCard: React.FC<BRBalanceCardProps> = ({ brScore }) => {
   return (
     <View style={styles.card}>
       <Text style={styles.label}>{t('brScoreLabel')}</Text>
-      <Text style={styles.value}>💎 {brScore}</Text>
+      <View style={styles.valueRow}>
+        <Ionicons name="diamond" size={24} color={colors.primary} />
+        <Text style={styles.value}> {brScore}</Text>
+      </View>
     </View>
   );
 };
@@ -27,6 +31,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   label: { fontSize: 13, color: colors.muted, marginBottom: 4, fontWeight: '600' },
+  valueRow: { flexDirection: 'row', alignItems: 'center' },
   value: { fontSize: 24, fontWeight: '800', color: colors.primary },
 });
 

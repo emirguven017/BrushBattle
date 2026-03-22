@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
 import { colors } from '../utils/colors';
+import { useLanguage } from '../context/LanguageContext';
 
 interface InviteCardProps {
   groupName: string;
@@ -15,6 +16,7 @@ export const InviteCard: React.FC<InviteCardProps> = ({
   inviteCode,
   onInvite
 }) => {
+  const { t } = useLanguage();
   const androidStoreLink = 'https://play.google.com/store/apps/details?id=com.brushbattle';
 
   const handleShare = async () => {
@@ -28,10 +30,10 @@ export const InviteCard: React.FC<InviteCardProps> = ({
       });
       await Share.share({
         message:
-          `Brush Battle'a katıl! Davet kodum: ${inviteCode}\n` +
-          `Katılım linki: ${inviteLink}\n\n` +
-          `Uygulama yüklü değilse buradan indir:\n${androidStoreLink}`,
-        title: 'Brush Battle Daveti'
+          `${t('inviteJoinMessage')} ${inviteCode}\n` +
+          `${t('inviteLink')} ${inviteLink}\n\n` +
+          `${t('inviteStoreHint')}\n${androidStoreLink}`,
+        title: t('inviteShareTitle')
       });
     } catch {}
   };
@@ -40,11 +42,11 @@ export const InviteCard: React.FC<InviteCardProps> = ({
     <View style={styles.card}>
       <Text style={styles.groupName}>{groupName}</Text>
       <View style={styles.codeBox}>
-        <Text style={styles.codeLabel}>Davet Kodu</Text>
+        <Text style={styles.codeLabel}>{t('inviteCodeLabel')}</Text>
         <Text style={styles.code}>{inviteCode}</Text>
       </View>
       <TouchableOpacity style={styles.btn} onPress={handleShare}>
-        <Text style={styles.btnText}>👥 Arkadaşını Davet Et</Text>
+        <Text style={styles.btnText}>{t('inviteFriend')}</Text>
       </TouchableOpacity>
     </View>
   );

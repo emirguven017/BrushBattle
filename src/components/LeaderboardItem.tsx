@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../utils/colors';
+import { useLanguage } from '../context/LanguageContext';
 
 interface LeaderboardItemProps {
   rank: number;
@@ -11,9 +13,7 @@ interface LeaderboardItemProps {
   completedToday?: boolean;
 }
 
-const MEDALS = ['🥇', '🥈', '🥉'];
-
-/** Single leaderboard row with rank styling for top 3 */
+/** Single leaderboard row with rank number */
 export const LeaderboardItem: React.FC<LeaderboardItemProps> = ({
   rank,
   username,
@@ -22,19 +22,29 @@ export const LeaderboardItem: React.FC<LeaderboardItemProps> = ({
   isCurrentUser,
   completedToday
 }) => {
-  const isTop3 = rank <= 3;
+  const { t } = useLanguage();
 
   return (
-    <View style={[styles.card, isCurrentUser && styles.cardHighlight, isTop3 && styles.cardTop3]}>
-      <Text style={styles.rank}>{MEDALS[rank - 1] || `${rank}.`}</Text>
+    <View style={[styles.card, isCurrentUser && styles.cardHighlight]}>
+      <View style={styles.rankBox}>
+        <Text style={styles.rank}>{rank}.</Text>
+      </View>
       <View style={styles.info}>
         <Text style={[styles.name, isCurrentUser && styles.nameHighlight]}>
-          {username} {isCurrentUser && '(Sen)'}
+          {username} {isCurrentUser && `(${t('you')})`}
         </Text>
-        <Text style={styles.meta}>
-          ⭐ {points} pts · 🔥 {streak} streak
-          {completedToday && ' · 🪥✅'}
-        </Text>
+        <View style={styles.metaRow}>
+          <Ionicons name="star" size={12} color={colors.muted} />
+          <Text style={styles.meta}> {points} pts · </Text>
+          <Ionicons name="flame" size={12} color={colors.muted} />
+          <Text style={styles.meta}> {streak} streak</Text>
+          {completedToday && (
+            <>
+              <Text style={styles.meta}> · </Text>
+              <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+            </>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -55,8 +65,9 @@ const styles = StyleSheet.create({
     elevation: 3
   },
   cardHighlight: { borderWidth: 2, borderColor: colors.primary },
-  cardTop3: { backgroundColor: '#F0FDF4' },
-  rank: { fontSize: 24, width: 44, textAlign: 'center' },
+  rankBox: { width: 44, alignItems: 'center', justifyContent: 'center' },
+  rank: { fontSize: 24, fontWeight: '700', color: colors.text },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, flexWrap: 'wrap' },
   info: { flex: 1 },
   name: { fontSize: 17, fontWeight: '700', color: colors.text },
   nameHighlight: { color: colors.primary },

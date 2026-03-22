@@ -1,17 +1,20 @@
 import React from 'react';
 import { Text, StyleSheet, View } from 'react-native';
 import { colors } from '../utils/colors';
+import { useLanguage } from '../context/LanguageContext';
 
 interface CrownBadgeProps {
   visible?: boolean;
   label?: string;
 }
 
-export const CrownBadge: React.FC<CrownBadgeProps> = ({ visible = true, label = 'Weekly Champion' }) => {
+export const CrownBadge: React.FC<CrownBadgeProps> = ({ visible = true, label }) => {
+  const { t } = useLanguage();
+  const displayLabel = label ?? t('weeklyChampion');
   if (!visible) return null;
   return (
     <View style={styles.badge}>
-      <Text style={styles.text}>👑 {label}</Text>
+      <Text style={styles.text}>👑 {displayLabel}</Text>
     </View>
   );
 };

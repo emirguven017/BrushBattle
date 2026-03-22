@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../utils/colors';
+import { useLanguage } from '../context/LanguageContext';
 
 type TaskStatus = 'completed' | 'pending' | 'missed';
 
@@ -8,29 +10,42 @@ interface TaskCardProps {
   title: string;
   status: TaskStatus;
   onStart?: () => void;
+  /** Geçti durumunda da fırçalama butonunu her zaman göster */
+  alwaysShowBrushButton?: boolean;
 }
 
 /** Task card for morning/evening brushing with large CTA button */
-export const TaskCard: React.FC<TaskCardProps> = ({ title, status, onStart }) => {
+export const TaskCard: React.FC<TaskCardProps> = ({ title, status, onStart, alwaysShowBrushButton = true }) => {
+  const { t } = useLanguage();
   const isCompleted = status === 'completed';
   const isMissed = status === 'missed';
 
   const statusConfig = {
-    completed: { icon: '✅', label: 'Tamamlandı', bg: colors.successLight },
-    pending: { icon: '⏳', label: 'Bekliyor', bg: colors.accentLight },
-    missed: { icon: '❌', label: 'Kaçırıldı', bg: colors.errorLight }
+    completed: { icon: 'checkmark-circle' as const, label: t('statusCompleted'), bg: colors.successLight, color: colors.success },
+    pending: { icon: 'time' as const, label: t('statusPending'), bg: colors.accentLight, color: colors.accent },
+    missed: { icon: 'close-circle' as const, label: t('statusMissed'), bg: colors.errorLight, color: colors.error }
   };
   const config = statusConfig[status];
 
   return (
     <View style={[styles.card, isCompleted && styles.cardCompleted]}>
       <View style={[styles.statusChip, { backgroundColor: config.bg }]}>
-        <Text style={styles.statusChipText}>{config.icon} {config.label}</Text>
+        <View style={styles.statusChipRow}>
+          <Ionicons name={config.icon} size={16} color={config.color} />
+          <Text style={styles.statusChipText}> {config.label}</Text>
+        </View>
       </View>
       <Text style={styles.title}>{title}</Text>
-      {!isCompleted && onStart && (
-        <TouchableOpacity style={styles.btn} onPress={onStart} activeOpacity={0.85}>
-          <Text style={styles.btnText}>🪥 Fırçalamaya Başla</Text>
+      {!isCompleted && (
+        <TouchableOpacity
+          style={styles.btn}
+          onPress={onStart ?? (() => {})}
+          activeOpacity={0.85}
+          disabled={!onStart}
+        >
+          <Text style={[styles.btnText, !onStart && styles.btnDisabled]}>
+            {isMissed ? t('brushAnyway') : t('startBrushing')}
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -62,6 +77,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 12
   },
+  statusChipRow: { flexDirection: 'row', alignItems: 'center' },
+  btnContent: { flexDirection: 'row', alignItems: 'center' },
   statusChipText: {
     fontSize: 13,
     fontWeight: '600',
@@ -76,5 +93,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 8
   },
-  btnText: { color: colors.white, fontSize: 17, fontWeight: '700' }
+  btnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
+  btnDisabled: { opacity: 0.6 }
 });

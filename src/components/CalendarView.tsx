@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../utils/colors';
-import { dateKey } from '../utils/date';
+import { dateKey, todayKey } from '../utils/date';
+import { useLanguage } from '../context/LanguageContext';
 
 export type DayStatus = 'full' | 'partial' | 'missed' | 'empty';
 
@@ -21,15 +22,15 @@ interface CalendarViewProps {
   onDayPress: (day: DayData) => void;
 }
 
-const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const MONTHS = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
-
 export const CalendarView: React.FC<CalendarViewProps> = ({
   days,
   currentMonth,
   onMonthChange,
   onDayPress
 }) => {
+  const { t } = useLanguage();
+  const WEEKDAYS = t('weekdaysShort').split(',');
+  const MONTHS = t('months').split(',');
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -51,6 +52,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return colors.error;
   };
 
+  const today = todayKey();
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -68,18 +71,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         ))}
       </View>
       <View style={styles.grid}>
-        {cells.map((day, i) => (
-          <TouchableOpacity
-            key={i}
-            style={[styles.cell, { backgroundColor: getBgColor(day) }]}
-            onPress={() => day && onDayPress(day)}
-            disabled={!day}
-          >
-            <Text style={styles.cellText}>
-              {day ? new Date(day.date).getDate() : ''}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {cells.map((day, i) => {
+          const isToday = day?.date === today;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[
+                styles.cell,
+                { backgroundColor: getBgColor(day) },
+                isToday && styles.todayCell
+              ]}
+              onPress={() => day && onDayPress(day)}
+              disabled={!day}
+            >
+              <Text style={[styles.cellText, isToday && styles.todayCellText]}>
+                {day ? new Date(day.date).getDate() : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -119,5 +129,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 4
   },
-  cellText: { fontSize: 14, fontWeight: '600', color: colors.text }
+  todayCell: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 6
+  },
+  cellText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  todayCellText: { fontWeight: '800' }
 });

@@ -1,25 +1,39 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../utils/colors';
+import { useLanguage } from '../context/LanguageContext';
+
+const BADGE_ICONS = ['trophy', 'medal', 'medal'] as const;
+const BADGE_COLORS = ['#FFD700', '#C0C0C0', '#CD7F32'] as const;
 
 interface RewardCardProps {
   rank: 1 | 2 | 3;
 }
 
-const rewardByRank = {
-  1: { title: '1. Odul', br: 50, badge: '👑 Weekly Champion', buff: '+10% puan buff' },
-  2: { title: '2. Odul', br: 30, badge: '🥈 Weekly Elite', buff: 'Yok' },
-  3: { title: '3. Odul', br: 20, badge: '🥉 Top Performer', buff: 'Yok' },
-} as const;
-
 export const RewardCard: React.FC<RewardCardProps> = ({ rank }) => {
+  const { t } = useLanguage();
+  const rewardByRank = {
+    1: { title: t('reward1'), br: 50, badge: t('weeklyChampionBadge'), buff: t('pointBuff') },
+    2: { title: t('reward2'), br: 30, badge: t('weeklyElite'), buff: t('noneShort') },
+    3: { title: t('reward3'), br: 20, badge: t('topPerformer'), buff: t('noneShort') },
+  } as const;
   const rw = rewardByRank[rank];
   return (
     <View style={styles.card}>
       <Text style={styles.title}>{rw.title}</Text>
-      <Text style={styles.row}>💎 +{rw.br} BR</Text>
-      <Text style={styles.row}>{rw.badge}</Text>
-      <Text style={styles.row}>⚡ {rw.buff}</Text>
+      <View style={styles.row}>
+        <Ionicons name="diamond" size={14} color={colors.primary} />
+        <Text style={styles.rowText}> +{rw.br} BR</Text>
+      </View>
+      <View style={styles.row}>
+        <Ionicons name={BADGE_ICONS[rank - 1]} size={14} color={BADGE_COLORS[rank - 1]} />
+        <Text style={styles.rowText}> {rw.badge}</Text>
+      </View>
+      <View style={styles.row}>
+        <Ionicons name="flash" size={14} color={colors.primary} />
+        <Text style={styles.rowText}> {rw.buff}</Text>
+      </View>
     </View>
   );
 };
@@ -34,6 +48,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 6 },
-  row: { fontSize: 13, color: colors.textSecondary, marginBottom: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  rowText: { fontSize: 13, color: colors.textSecondary, marginLeft: 4 },
 });
 

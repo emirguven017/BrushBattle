@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { colors } from '../utils/colors';
 import type { MarketCategory, MarketItemId, User } from '../types';
@@ -36,6 +38,7 @@ const normalizeMarketError = (e: unknown, t: (key: string) => string): string =>
 };
 
 export const BRMarketScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLanguage();
   const route = useRoute();
@@ -102,7 +105,7 @@ export const BRMarketScreen: React.FC = () => {
     try {
       await MarketService.buyItem(user.id, itemId);
       await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifPurchased'));
-      Alert.alert('✅', t('itemPurchased'));
+      Alert.alert(t('info'), t('itemPurchased'));
       await load();
     } catch (e) {
       Alert.alert(t('error'), normalizeMarketError(e, t));
@@ -115,7 +118,7 @@ export const BRMarketScreen: React.FC = () => {
       const isAttack = itemId === 'freeze' || itemId === 'score_drop';
       await MarketService.useItem(user.id, itemId, isAttack ? targetUserId : undefined);
       await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifUsed'));
-      Alert.alert('✅', t('itemUsed'));
+      Alert.alert(t('info'), t('itemUsed'));
       await load();
     } catch (e) {
       Alert.alert(t('error'), normalizeMarketError(e, t));
@@ -125,9 +128,11 @@ export const BRMarketScreen: React.FC = () => {
   if (!user) return null;
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.titleBar}>
-        <Text style={styles.title}>🛒 {t('brMarketTitle')}</Text>
+    <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
+      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+        <View style={styles.titleBar}>
+        <Text style={styles.title}>{t('brMarketTitle')}</Text>
+        </View>
       </View>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <BRBalanceCard brScore={brScore} />
@@ -195,13 +200,15 @@ export const BRMarketScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
+  wrapper: { flex: 1 },
+  greenHeader: { backgroundColor: colors.primary },
   titleBar: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: '800', color: colors.white },
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 40 },

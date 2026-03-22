@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { colors } from '../utils/colors';
 
 interface TimerCircleProps {
@@ -8,7 +9,12 @@ interface TimerCircleProps {
   label?: string;
 }
 
-/** Circular-style countdown timer (large circle with progress feel) */
+const SIZE = 200;
+const STROKE_WIDTH = 10;
+const RADIUS = (SIZE - STROKE_WIDTH) / 2;
+const CENTER = SIZE / 2;
+
+/** Circular countdown timer: beyaz gölgeli halka başlangıçta, vakit geçtikçe yeşil dolum */
 export const TimerCircle: React.FC<TimerCircleProps> = ({
   remaining,
   total,
@@ -17,16 +23,32 @@ export const TimerCircle: React.FC<TimerCircleProps> = ({
   const progress = total > 0 ? (total - remaining) / total : 1;
   const m = Math.floor(remaining / 60);
   const s = remaining % 60;
+  const ringColor = progress >= 1 ? colors.success : colors.primary;
 
   return (
     <View style={styles.container}>
-      <View style={styles.circleOuter}>
-        <View
-          style={[
-            styles.circleInner,
-            { borderColor: progress >= 1 ? colors.success : colors.primary }
-          ]}
-        >
+      <View style={[styles.circleWrapper, styles.shadowRing]}>
+        <Svg width={SIZE} height={SIZE} style={styles.svg}>
+          {/* Beyaz arka plan halkası (track) */}
+          <Circle
+            cx={CENTER}
+            cy={CENTER}
+            r={RADIUS}
+            stroke="#ffffff"
+            strokeWidth={STROKE_WIDTH}
+            fill="none"
+          />
+          {/* Yeşil halka (sabit, animasyonsuz) */}
+          <Circle
+            cx={CENTER}
+            cy={CENTER}
+            r={RADIUS}
+            stroke={ringColor}
+            strokeWidth={STROKE_WIDTH}
+            fill="none"
+          />
+        </Svg>
+        <View style={styles.timerContent}>
           <Text style={styles.timerText}>{`${m}:${s.toString().padStart(2, '0')}`}</Text>
         </View>
       </View>
@@ -45,21 +67,34 @@ export const TimerCircle: React.FC<TimerCircleProps> = ({
 
 const styles = StyleSheet.create({
   container: { alignItems: 'center', marginVertical: 24 },
-  circleOuter: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+  circleWrapper: {
+    width: SIZE,
+    height: SIZE,
+    borderRadius: SIZE / 2,
     backgroundColor: colors.background,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
-  circleInner: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 8,
+  shadowRing: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  svg: {
+    position: 'absolute',
+  },
+  timerContent: {
+    position: 'absolute',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   timerText: { fontSize: 48, fontWeight: '800', color: colors.primary },
   label: { fontSize: 18, color: colors.muted, marginTop: 16, fontWeight: '600' },

@@ -8,16 +8,23 @@ import {
   StyleSheet,
   Alert
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import CountryFlag from 'react-native-country-flag';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TimePicker24 } from '../components/TimePicker24';
 import { colors } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
+import { useIntro } from '../context/IntroContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { NotificationService } from '../services/NotificationService';
 
 export const SettingsScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { user, refreshUser, logOut } = useAuth();
   const { t, language, setLanguage } = useLanguage();
+  const { requestShowIntroAgain } = useIntro();
   const [username, setUsername] = useState(user?.username ?? '');
   const [morningTime, setMorningTime] = useState(user?.morningTime ?? '08:00');
   const [eveningTime, setEveningTime] = useState(user?.eveningTime ?? '21:00');
@@ -35,9 +42,15 @@ export const SettingsScreen: React.FC = () => {
         eveningTime: eveningTime || '21:00'
       });
       await refreshUser();
+      const updatedUser = { ...user, morningTime: morningTime || '08:00', eveningTime: eveningTime || '21:00' };
+      await NotificationService.syncDailyBaseReminders(updatedUser);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleShowIntroAgain = async () => {
+    await requestShowIntroAgain();
   };
 
   const handleLeaveGroup = () => {
@@ -52,9 +65,11 @@ export const SettingsScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.titleBar}>
-        <Text style={styles.title}>⚙️ {t('settings')}</Text>
+    <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
+      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+        <View style={styles.titleBar}>
+        <Text style={styles.title}>{t('settings')}</Text>
+        </View>
       </View>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
@@ -64,17 +79,23 @@ export const SettingsScreen: React.FC = () => {
             style={[styles.langBtn, language === 'tr' && styles.langBtnActive]}
             onPress={() => setLanguage('tr')}
           >
-            <Text style={[styles.langBtnText, language === 'tr' && styles.langBtnTextActive]}>
-              🇹🇷 {t('turkish')}
-            </Text>
+            <View style={styles.langBtnContent}>
+              <CountryFlag isoCode="tr" size={22} style={styles.flag} />
+              <Text style={[styles.langBtnText, language === 'tr' && styles.langBtnTextActive]}>
+                {' '}{t('turkish')}
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.langBtn, language === 'en' && styles.langBtnActive]}
             onPress={() => setLanguage('en')}
           >
-            <Text style={[styles.langBtnText, language === 'en' && styles.langBtnTextActive]}>
-              🇬🇧 {t('english')}
-            </Text>
+            <View style={styles.langBtnContent}>
+              <CountryFlag isoCode="gb" size={22} style={styles.flag} />
+              <Text style={[styles.langBtnText, language === 'en' && styles.langBtnTextActive]}>
+                {' '}{t('english')}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -97,7 +118,10 @@ export const SettingsScreen: React.FC = () => {
           onPress={() => setShowMorningPicker(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.timeButtonText}>🕐 {morningTime}</Text>
+          <View style={styles.timeButtonContent}>
+            <Ionicons name="sunny-outline" size={20} color={colors.text} />
+            <Text style={styles.timeButtonText}> {morningTime}</Text>
+          </View>
           <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
         </TouchableOpacity>
         {showMorningPicker && (
@@ -120,7 +144,10 @@ export const SettingsScreen: React.FC = () => {
           onPress={() => setShowEveningPicker(true)}
           activeOpacity={0.7}
         >
-          <Text style={styles.timeButtonText}>🌙 {eveningTime}</Text>
+          <View style={styles.timeButtonContent}>
+            <Ionicons name="moon-outline" size={20} color={colors.text} />
+            <Text style={styles.timeButtonText}> {eveningTime}</Text>
+          </View>
           <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
         </TouchableOpacity>
         {showEveningPicker && (
@@ -155,6 +182,9 @@ export const SettingsScreen: React.FC = () => {
         </TouchableOpacity>
       )}
 
+      <TouchableOpacity style={styles.showIntroBtn} onPress={handleShowIntroAgain}>
+        <Text style={styles.showIntroBtnText}>{t('showIntroAgain')}</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.logoutBtn} onPress={logOut}>
         <Text style={styles.logoutBtnText}>{t('logout')}</Text>
       </TouchableOpacity>
@@ -164,7 +194,8 @@ export const SettingsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
+  wrapper: { flex: 1 },
+  greenHeader: { backgroundColor: colors.primary },
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 20, paddingBottom: 40 },
   titleBar: {
@@ -173,11 +204,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center' },
   title: {
     fontSize: 22,
     fontWeight: '800',
     color: colors.white
   },
+  langBtnContent: { flexDirection: 'row', alignItems: 'center' },
+  flag: { borderRadius: 2, overflow: 'hidden' },
+  timeButtonContent: { flexDirection: 'row', alignItems: 'center' },
   card: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -275,6 +310,15 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   leaveBtnText: { color: colors.warning, fontSize: 16, fontWeight: '600' },
+  showIntroBtn: {
+    marginTop: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 16
+  },
+  showIntroBtnText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   logoutBtn: {
     marginTop: 12,
     backgroundColor: colors.error,

@@ -44,15 +44,33 @@ export const LeaderboardService = {
     return rankings;
   },
 
+  /** Tüm grup üyelerini haftalık sıralamada gösterir; fırçalamamış olanlar 0 puanla listelenir */
   async getGroupWeeklyLeaderboard(groupId: string): Promise<LeaderboardRanking[]> {
-    const list = await WeeklyRewardService.getWeeklyLeaderboard(groupId);
-    return list.map((r) => ({
-      userId: r.userId,
-      username: r.username,
-      points: r.weeklyPoints,
-      streak: r.streak,
-      completedSessions: r.completedSessions,
-    }));
+    const [usersSnap, weeklyList] = await Promise.all([
+      getDocs(query(collection(db, 'users'), where('groupId', '==', groupId))),
+      WeeklyRewardService.getWeeklyLeaderboard(groupId)
+    ]);
+    const users: User[] = usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+    const weeklyMap = new Map(weeklyList.map((r) => [r.userId, r]));
+
+    return users
+      .map((u) => {
+        const w = weeklyMap.get(u.id);
+        const weeklyPts = w?.weeklyPoints ?? 0;
+        const totalPts = u.points ?? 0;
+        return {
+          userId: u.id,
+          username: u.username,
+          points: weeklyPts > 0 ? weeklyPts : totalPts,
+          streak: w?.streak ?? u.streak ?? 0,
+          completedSessions: w?.completedSessions ?? 0,
+        };
+      })
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.streak !== a.streak) return b.streak - a.streak;
+        return b.completedSessions - a.completedSessions;
+      });
   },
 };
 

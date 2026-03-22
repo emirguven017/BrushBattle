@@ -1,5 +1,7 @@
 import React from 'react';
-import { Text, Alert, Linking as RNLinking } from 'react-native';
+import { Alert, Linking as RNLinking } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ExpoLinking from 'expo-linking';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -8,8 +10,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { AuthProvider } from './src/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
+import { IntroProvider, useIntro } from './src/context/IntroContext';
 import { useAuth } from './src/hooks/useAuth';
 import { SplashScreen } from './src/screens/SplashScreen';
+import { IntroScreen } from './src/screens/IntroScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
@@ -27,13 +31,6 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const PENDING_INVITE_KEY = '@brush_battle_pending_invite_code';
 
-const tabBarStyle = {
-  backgroundColor: colors.card,
-  borderTopWidth: 1,
-  borderTopColor: colors.cardBorder,
-  paddingTop: 8,
-  height: 60
-};
 
 const headerOptions = {
   headerStyle: { backgroundColor: colors.primary },
@@ -62,13 +59,22 @@ const HomeStack: React.FC = () => {
 
 const AppTabs: React.FC = () => {
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarStyle,
+        tabBarStyle: {
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
+          borderTopColor: colors.cardBorder,
+          paddingTop: 8,
+          paddingBottom: Math.max(insets.bottom, 12),
+          height: 60 + Math.max(insets.bottom, 12)
+        },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' }
       }}
     >
@@ -77,7 +83,7 @@ const AppTabs: React.FC = () => {
         component={HomeStack}
         options={{
           tabBarLabel: t('home'),
-          tabBarIcon: () => <Text>🏠</Text>
+          tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
         }}
       />
       <Tab.Screen
@@ -85,7 +91,7 @@ const AppTabs: React.FC = () => {
         component={GroupScreen}
         options={{
           tabBarLabel: t('group'),
-          tabBarIcon: () => <Text>👥</Text>
+          tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? 'people' : 'people-outline'} size={size} color={color} />
         }}
       />
       <Tab.Screen
@@ -93,7 +99,7 @@ const AppTabs: React.FC = () => {
         component={LeaderboardScreen}
         options={{
           tabBarLabel: t('score'),
-          tabBarIcon: () => <Text>🏆</Text>
+          tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={size} color={color} />
         }}
       />
       <Tab.Screen
@@ -101,7 +107,7 @@ const AppTabs: React.FC = () => {
         component={BRMarketScreen}
         options={{
           tabBarLabel: t('market'),
-          tabBarIcon: () => <Text>🛒</Text>
+          tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? 'cart' : 'cart-outline'} size={size} color={color} />
         }}
       />
       <Tab.Screen
@@ -109,7 +115,7 @@ const AppTabs: React.FC = () => {
         component={HistoryScreen}
         options={{
           tabBarLabel: t('history'),
-          tabBarIcon: () => <Text>📅</Text>
+          tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={size} color={color} />
         }}
       />
       <Tab.Screen
@@ -117,7 +123,7 @@ const AppTabs: React.FC = () => {
         component={SettingsScreen}
         options={{
           tabBarLabel: t('settings'),
-          tabBarIcon: () => <Text>⚙️</Text>
+          tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? 'settings' : 'settings-outline'} size={size} color={color} />
         }}
       />
     </Tab.Navigator>
@@ -125,7 +131,22 @@ const AppTabs: React.FC = () => {
 };
 
 const RootNavigatorInner: React.FC = () => {
+  const { t } = useLanguage();
   const { user, loading, refreshUser } = useAuth();
+  const {
+    hasSeenIntroForNewUser,
+    showIntroOverlay,
+    refreshNewUserIntroStatus,
+    markIntroComplete,
+    markNewUserIntroComplete,
+    dismissIntroOverlay
+  } = useIntro();
+
+  React.useEffect(() => {
+    if (user?.id && !user?.onboardingComplete) {
+      refreshNewUserIntroStatus(user.id);
+    }
+  }, [user?.id, user?.onboardingComplete, refreshNewUserIntroStatus]);
 
   const joinFromCode = React.useCallback(async (code: string) => {
     if (!code?.trim()) return;
@@ -136,14 +157,14 @@ const RootNavigatorInner: React.FC = () => {
     try {
       await GroupService.joinGroup(user.id, code);
       await refreshUser();
-      Alert.alert('✅', 'Gruba otomatik katıldın.');
+      Alert.alert(t('joinedGroupSuccess'));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Gruba katılınamadı';
-      Alert.alert('Davet Hatası', msg);
+      const msg = e instanceof Error ? e.message : t('joinGroupFailed');
+      Alert.alert(t('inviteError'), msg);
     } finally {
       await AsyncStorage.removeItem(PENDING_INVITE_KEY);
     }
-  }, [user, refreshUser]);
+  }, [user, refreshUser, t]);
 
   React.useEffect(() => {
     const handleUrl = async (url: string | null) => {
@@ -179,20 +200,31 @@ const RootNavigatorInner: React.FC = () => {
     NotificationService.syncDailyBaseReminders(user).catch(() => {});
   }, [user?.id, user?.morningTime, user?.eveningTime]);
 
-  if (loading) {
-    return <SplashScreen />;
-  }
-
   const needsOnboarding = user && !user.onboardingComplete;
+  const needsNewUserIntro = needsOnboarding && hasSeenIntroForNewUser !== true;
 
-  if (loading) {
-    return <SplashScreen />;
+  if (showIntroOverlay && user) {
+    return (
+      <IntroScreen
+        onComplete={dismissIntroOverlay}
+      />
+    );
   }
-  if (user && needsOnboarding) {
+  if (user && needsOnboarding && !needsNewUserIntro) {
     return <OnboardingScreen />;
+  }
+  if (user && needsNewUserIntro) {
+    return (
+      <IntroScreen
+        onComplete={() => user.id && markNewUserIntroComplete(user.id)}
+      />
+    );
   }
   if (user) {
     return <AppTabs />;
+  }
+  if (loading) {
+    return <SplashScreen />;
   }
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -203,15 +235,19 @@ const RootNavigatorInner: React.FC = () => {
 
 const RootNavigator: React.FC = () => {
   return (
+    <SafeAreaProvider>
     <GestureHandlerRootView style={{ flex: 1 }}>
     <LanguageProvider>
+    <IntroProvider>
     <AuthProvider>
       <NavigationContainer>
         <RootNavigatorInner />
       </NavigationContainer>
     </AuthProvider>
+    </IntroProvider>
     </LanguageProvider>
     </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 };
 

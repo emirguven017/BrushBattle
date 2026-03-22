@@ -6,8 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
+import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
 import {
   CalendarView,
@@ -17,6 +20,8 @@ import {
 import { dateKey } from '../utils/date';
 
 export const HistoryScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [days, setDays] = useState<Record<string, DayData>>({});
@@ -77,11 +82,14 @@ export const HistoryScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.titleBar}>
-        <Text style={styles.title}> Takvim</Text>
+    <View style={[styles.container, { backgroundColor: colors.primary }]}>
+      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+        <View style={styles.titleBar}>
+        <Text style={styles.title}>{t('calendar')}</Text>
+        </View>
       </View>
 
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       <CalendarView
         days={days}
         currentMonth={currentMonth}
@@ -92,16 +100,17 @@ export const HistoryScreen: React.FC = () => {
       <View style={styles.legend}>
         <View style={styles.legendRow}>
           <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-          <Text style={styles.legendText}>İkisi de tamam</Text>
+          <Text style={styles.legendText}>{t('legendBothDone')}</Text>
         </View>
         <View style={styles.legendRow}>
           <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
-          <Text style={styles.legendText}>Biri tamam</Text>
+          <Text style={styles.legendText}>{t('legendOneDone')}</Text>
         </View>
         <View style={styles.legendRow}>
           <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
-          <Text style={styles.legendText}>Kaçırıldı</Text>
+          <Text style={styles.legendText}>{t('legendMissed')}</Text>
         </View>
+      </View>
       </View>
 
       <Modal
@@ -125,7 +134,7 @@ export const HistoryScreen: React.FC = () => {
                   return (
                     <>
                 <Text style={styles.modalTitle}>
-                  {new Date(selectedDay.date + 'T12:00:00').toLocaleDateString('tr-TR', {
+                  {new Date(selectedDay.date + 'T12:00:00').toLocaleDateString(language === 'en' ? 'en-US' : 'tr-TR', {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'long',
@@ -133,44 +142,54 @@ export const HistoryScreen: React.FC = () => {
                   })}
                 </Text>
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>✅ Yapılan görevler</Text>
+                  <View style={styles.sectionTitleRow}>
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                  <Text style={styles.sectionTitle}> {t('tasksCompleted')}</Text>
+                </View>
                   {selectedDay.morningCompleted && (
-                    <Text style={styles.taskItem}>• Sabah fırçalama</Text>
+                    <Text style={styles.taskItem}>• {t('morningBrushing')}</Text>
                   )}
                   {selectedDay.eveningCompleted && (
-                    <Text style={styles.taskItem}>• Akşam fırçalama</Text>
+                    <Text style={styles.taskItem}>• {t('eveningBrushing')}</Text>
                   )}
                   {!selectedDay.morningCompleted && !selectedDay.eveningCompleted && (
-                    <Text style={styles.taskItemMuted}>Yok</Text>
+                    <Text style={styles.taskItemMuted}>{t('none')}</Text>
                   )}
                 </View>
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>⏳ Kalan görevler</Text>
+                  <View style={styles.sectionTitleRow}>
+                  <Ionicons name="time" size={16} color={colors.accent} />
+                  <Text style={styles.sectionTitle}> {t('tasksRemaining')}</Text>
+                </View>
                   {isTodayOrFuture && !selectedDay.morningCompleted && (
-                    <Text style={styles.taskItem}>• Sabah fırçalama</Text>
+                    <Text style={styles.taskItem}>• {t('morningBrushing')}</Text>
                   )}
                   {isTodayOrFuture && !selectedDay.eveningCompleted && (
-                    <Text style={styles.taskItem}>• Akşam fırçalama</Text>
+                    <Text style={styles.taskItem}>• {t('eveningBrushing')}</Text>
                   )}
                   {(!isTodayOrFuture || (selectedDay.morningCompleted && selectedDay.eveningCompleted)) && (
-                    <Text style={styles.taskItemMuted}>Yok</Text>
+                    <Text style={styles.taskItemMuted}>{t('none')}</Text>
                   )}
                 </View>
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>❌ Kaçırılan görevler</Text>
+                  <View style={styles.sectionTitleRow}>
+                  <Ionicons name="close-circle" size={16} color={colors.error} />
+                  <Text style={styles.sectionTitle}> {t('tasksMissed')}</Text>
+                </View>
                   {isPastDay && !selectedDay.morningCompleted && (
-                    <Text style={styles.taskItem}>• Sabah fırçalama</Text>
+                    <Text style={styles.taskItem}>• {t('morningBrushing')}</Text>
                   )}
                   {isPastDay && !selectedDay.eveningCompleted && (
-                    <Text style={styles.taskItem}>• Akşam fırçalama</Text>
+                    <Text style={styles.taskItem}>• {t('eveningBrushing')}</Text>
                   )}
                   {(!isPastDay || (selectedDay.morningCompleted && selectedDay.eveningCompleted)) && (
-                    <Text style={styles.taskItemMuted}>Yok</Text>
+                    <Text style={styles.taskItemMuted}>{t('none')}</Text>
                   )}
                 </View>
-                <Text style={styles.pointsRow}>
-                  ⭐ Toplam puan: {selectedDay.pointsEarned ?? 0}
-                </Text>
+                <View style={styles.pointsRow}>
+                  <Ionicons name="star" size={18} color={colors.primary} />
+                  <Text style={styles.pointsRowText}> {t('totalPoints')}: {selectedDay.pointsEarned ?? 0}</Text>
+                </View>
                     </>
                   );
                 })()}
@@ -184,7 +203,8 @@ export const HistoryScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
+  greenHeader: { backgroundColor: colors.primary },
   titleBar: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
@@ -228,11 +248,11 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 16
   },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.muted,
-    marginBottom: 8
+    color: colors.muted
   },
   taskItem: {
     fontSize: 15,
@@ -247,12 +267,16 @@ const styles = StyleSheet.create({
     fontStyle: 'italic'
   },
   pointsRow: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder
+  },
+  pointsRowText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary
   }
 });

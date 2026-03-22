@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../utils/colors';
+import { useLanguage } from '../context/LanguageContext';
 
 interface StreakCardProps {
   streak: number;
@@ -15,35 +17,48 @@ export const StreakCard: React.FC<StreakCardProps> = ({
   points,
   rank,
   size = 'large'
-}) => (
-  <View style={[styles.card, size === 'small' && styles.cardSmall]}>
-    <View style={styles.row}>
-      <View style={styles.statBox}>
-        <Text style={[styles.statValue, size === 'small' && styles.textSmall]}>
-          {streak}
-        </Text>
-        <Text style={[styles.statLabel, size === 'small' && styles.textSmall]}>
-          🔥 gün streak
-        </Text>
+}) => {
+  const { t } = useLanguage();
+  const iconSz = size === 'small' ? 14 : 16;
+  return (
+    <View style={[styles.card, size === 'small' && styles.cardSmall]}>
+      <View style={styles.row}>
+        <View style={styles.statBox}>
+          <Text style={[styles.statValue, size === 'small' && styles.textSmall]}>
+            {streak}
+          </Text>
+          <View style={styles.labelRow}>
+            <Ionicons name="flame" size={iconSz} color={colors.muted} />
+            <Text style={[styles.statLabel, size === 'small' && styles.textSmall]}>
+              {t('streakDaysLabel')}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={[styles.statValue, size === 'small' && styles.textSmall]}>
+            {points}
+          </Text>
+          <View style={styles.labelRow}>
+            <Ionicons name="star" size={iconSz} color={colors.muted} />
+            <Text style={[styles.statLabel, size === 'small' && styles.textSmall]}>
+              {t('pointsLabel')}
+            </Text>
+          </View>
+        </View>
       </View>
-      <View style={styles.statBox}>
-        <Text style={[styles.statValue, size === 'small' && styles.textSmall]}>
-          {points}
-        </Text>
-        <Text style={[styles.statLabel, size === 'small' && styles.textSmall]}>
-          ⭐ puan
-        </Text>
-      </View>
+      {rank != null && (
+        <View style={styles.rankBadge}>
+          <View style={styles.labelRow}>
+            <Ionicons name="trophy" size={iconSz} color={colors.textSecondary} />
+            <Text style={[styles.rank, size === 'small' && styles.textSmall]}>
+              {t('rankThisWeek')} #{rank}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
-    {rank != null && (
-      <View style={styles.rankBadge}>
-        <Text style={[styles.rank, size === 'small' && styles.textSmall]}>
-          🏆 Bu hafta #{rank}
-        </Text>
-      </View>
-    )}
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
@@ -77,11 +92,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.primary
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4
+  },
   statLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.muted,
-    marginTop: 4
+    color: colors.muted
   },
   rankBadge: {
     marginTop: 14,

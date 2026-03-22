@@ -2,6 +2,18 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SessionType, User } from '../types';
 import { todayKey } from '../utils/date';
+import { translations, type Language } from '../i18n/translations';
+
+function t(key: string, lang: Language): string {
+  return translations[lang][key] ?? key;
+}
+
+const LANGUAGE_KEY = '@brush_battle_language';
+
+export async function getStoredLanguage(): Promise<Language> {
+  const saved = await AsyncStorage.getItem(LANGUAGE_KEY);
+  return saved === 'en' || saved === 'tr' ? saved : 'tr';
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -30,60 +42,91 @@ export const NotificationService = {
   },
 
   /**
-   * Kullanıcının sabah/akşam saatlerine göre günlük bildirim kur.
-   * Bu fonksiyonu onboarding ve ayarlarda saat değiştiğinde çağırabilirsin.
+   * Kullanıcının kendi seans saatlerine (morningTime, eveningTime) göre her seans için
+   * 1 saatlik dilimde 15 dk arayla 4 bildirim planlar. Her kullanıcının saatleri farklı olabilir.
+   * 1. Fırçalama vakti geldi | 2. Son 30 dk | 3. Son 15 dk | 4. Seansı kaçırdın ama yine fırçalayabilirsin
    */
   async scheduleDailyBaseReminders(user: User): Promise<void> {
     const granted = await this.requestPermissions();
     if (!granted) return;
 
+    const lang = await getStoredLanguage();
     await this.cancelDailyBaseReminders(user.id);
 
-    const { hour: mh, minute: mm } = this.parseTimeString(user.morningTime);
-    const { hour: eh, minute: em } = this.parseTimeString(user.eveningTime);
+    const stored: { morning: string[]; evening: string[] } = { morning: [], evening: [] };
+    const morningIds: string[] = [];
+    const eveningIds: string[] = [];
 
-    const morningId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Time to brush your teeth 🪥',
-        body: 'Morning brushing time!',
-        data: { sessionType: 'morning', userId: user.id }
-      },
-      trigger: {
-        type: 'daily',
-        hour: mh,
-        minute: mm
-      } as Notifications.NotificationTriggerInput
-    });
+    const scheduleSession = async (sessionType: 'morning' | 'evening', timeStr: string, outIds: string[]) => {
+      const [h, m] = timeStr.split(':').map(Number);
+      const baseMin = h * 60 + m;
+      const offsets = [0, 15, 30, 45];
+      const configs: { title: string; body: string }[] = [
+        { title: t('notifBrushTimeTitle', lang), body: sessionType === 'morning' ? t('notifMorningBody', lang) : t('notifEveningBody', lang) },
+        { title: t('notifReminderTitle', lang), body: t('notifReminder30Body', lang) },
+        { title: t('notifReminderTitle', lang), body: t('notifReminder15Body', lang) },
+        { title: t('notifMissedTitle', lang), body: t('notifMissedBody', lang) }
+      ];
+      for (let i = 0; i < 4; i++) {
+        const totalMin = baseMin + offsets[i];
+        const hour = Math.floor(totalMin / 60) % 24;
+        const minute = totalMin % 60;
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: configs[i].title,
+            body: configs[i].body,
+            data: { sessionType, userId: user.id }
+          },
+          trigger: {
+            type: 'daily',
+            hour,
+            minute
+          } as Notifications.NotificationTriggerInput
+        });
+        outIds.push(id);
+      }
+    };
 
-    const eveningId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Time to brush your teeth 🪥',
-        body: 'Evening brushing time!',
-        data: { sessionType: 'evening', userId: user.id }
-      },
-      trigger: {
-        type: 'daily',
-        hour: eh,
-        minute: em
-      } as Notifications.NotificationTriggerInput
-    });
+    await scheduleSession('morning', user.morningTime ?? '08:00', morningIds);
+    await scheduleSession('evening', user.eveningTime ?? '21:00', eveningIds);
 
-    await AsyncStorage.setItem(
-      DAILY_REMINDER_IDS_KEY(user.id),
-      JSON.stringify([morningId, eveningId])
-    );
+    stored.morning = morningIds;
+    stored.evening = eveningIds;
+    await AsyncStorage.setItem(DAILY_REMINDER_IDS_KEY(user.id), JSON.stringify(stored));
   },
 
   async cancelDailyBaseReminders(userId: string): Promise<void> {
     const raw = await AsyncStorage.getItem(DAILY_REMINDER_IDS_KEY(userId));
     if (!raw) return;
-    const ids: string[] = JSON.parse(raw);
-    await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
+    try {
+      const parsed = JSON.parse(raw);
+      const ids: string[] = Array.isArray(parsed)
+        ? parsed
+        : [...(parsed.morning || []), ...(parsed.evening || [])];
+      await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
+    } catch {}
     await AsyncStorage.removeItem(DAILY_REMINDER_IDS_KEY(userId));
   },
 
+  /** Seans tamamlandığında o seansın kalan bildirimlerini iptal et */
+  async cancelMissedReminder(userId: string, sessionType: SessionType): Promise<void> {
+    const key = sessionType === 'morning' ? 'morning' : 'evening';
+    const raw = await AsyncStorage.getItem(DAILY_REMINDER_IDS_KEY(userId));
+    if (!raw) return;
+    try {
+      const stored = JSON.parse(raw) as { morning?: string[]; evening?: string[] };
+      const ids = stored[key];
+      if (Array.isArray(ids) && ids.length > 0) {
+        await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id)));
+        stored[key] = [];
+        await AsyncStorage.setItem(DAILY_REMINDER_IDS_KEY(userId), JSON.stringify(stored));
+      }
+    } catch {}
+  },
+
   async syncDailyBaseReminders(user: User): Promise<void> {
-    const signature = `${user.morningTime}|${user.eveningTime}`;
+    const lang = await getStoredLanguage();
+    const signature = `${user.morningTime}|${user.eveningTime}|${lang}`;
     const key = DAILY_REMINDER_SIG_KEY(user.id);
     const prev = await AsyncStorage.getItem(key);
     if (prev === signature) return;
@@ -91,33 +134,9 @@ export const NotificationService = {
     await AsyncStorage.setItem(key, signature);
   },
 
-  /**
-   * Bir seans başladıktan sonra (Start Brushing) 10 / 30 / 60 dk sonra
-   * hatırlatma bildirimleri planlar. Seans tamamlanınca iptal edilir.
-   */
+  /** Bildirimler devre dışı - seans hatırlatması planlanmaz */
   async schedulePersistentReminders(userId: string, sessionType: SessionType) {
-    const date = todayKey();
-    const ids: string[] = [];
-    // 1 saat boyunca her 10 dakikada bir hatirlat.
-    const delays = [10, 20, 30, 40, 50, 60];
-
-    for (const minutes of delays) {
-      const id = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Don\'t forget to brush 🪥',
-          body: 'Brushing timer bitti mi? Seansını onaylamayı unutma.',
-          data: { sessionType, userId }
-        },
-        trigger: {
-          type: 'timeInterval',
-          seconds: minutes * 60,
-          repeats: false
-        } as Notifications.NotificationTriggerInput
-      });
-      ids.push(id);
-    }
-
-    await AsyncStorage.setItem(REMINDER_KEY(userId, date, sessionType), JSON.stringify(ids));
+    await this.cancelSessionReminders(userId, sessionType);
   },
 
   async cancelSessionReminders(userId: string, sessionType: SessionType) {
@@ -131,15 +150,9 @@ export const NotificationService = {
     await AsyncStorage.removeItem(key);
   },
 
-  async notifyMarketEvent(title: string, body: string, data?: Record<string, unknown>) {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        data: data ?? {},
-      },
-      trigger: null,
-    });
+  /** Bildirimler devre dışı - bildirim gönderilmez */
+  async notifyMarketEvent(_title: string, _body: string, _data?: Record<string, unknown>) {
+    // no-op
   }
 };
 

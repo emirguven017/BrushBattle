@@ -14,7 +14,14 @@ import type { UserStats, WeeklyLeaderboardEntry } from '../types';
 import { getPreviousWeekKey, getWeekKey } from '../utils/week';
 import { InventoryService } from './inventoryService';
 import { EffectService } from './effectService';
-import { NotificationService } from './NotificationService';
+import { NotificationService, getStoredLanguage } from './NotificationService';
+import { translations, type Language } from '../i18n/translations';
+
+function notifT(key: string, lang: Language, vars?: Record<string, string>): string {
+  let s = translations[lang][key] ?? key;
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, v);
+  return s;
+}
 
 const wlCol = collection(db, 'weeklyLeaderboard');
 
@@ -94,6 +101,8 @@ export const WeeklyRewardService = {
     const second = top3[1];
     const third = top3[2];
 
+    const lang = await getStoredLanguage();
+
     if (champion) {
       await InventoryService.addBrScore(champion.userId, 50);
       await this.addBadge(champion.userId, '👑 Weekly Champion');
@@ -107,12 +116,12 @@ export const WeeklyRewardService = {
         expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
       });
       await this.bumpWins(champion.userId);
-      await NotificationService.notifyMarketEvent('Weekly Reward', 'You are the new Champion 👑');
+      await NotificationService.notifyMarketEvent(notifT('notifWeeklyReward', lang), notifT('notifNewChampion', lang));
     }
     if (second) {
       await InventoryService.addBrScore(second.userId, 30);
       await this.addBadge(second.userId, '🥈 Weekly Elite');
-      await NotificationService.notifyMarketEvent('Weekly Reward', 'You finished #2 this week. Almost there!');
+      await NotificationService.notifyMarketEvent(notifT('notifWeeklyReward', lang), notifT('notifFinishedSecond', lang));
     }
     if (third) {
       await InventoryService.addBrScore(third.userId, 20);
@@ -120,8 +129,9 @@ export const WeeklyRewardService = {
     }
 
     if (champion) {
+      const crownMsg = notifT('notifCrownLost', lang, { username: champion.username });
       for (const row of ranking.slice(1)) {
-        await NotificationService.notifyMarketEvent('Crown Update', `You lost your crown to ${champion.username}!`);
+        await NotificationService.notifyMarketEvent(notifT('notifCrownUpdate', lang), crownMsg);
         if (row.userId === champion.userId) break;
       }
     }
