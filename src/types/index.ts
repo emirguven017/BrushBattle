@@ -26,6 +26,7 @@ export interface BrushSession {
   userId: string;
   date: string;
   sessionType: SessionType;
+  scheduledTime?: string;
   status: SessionStatus;
   completedAt?: number;
   pointsEarned: number;

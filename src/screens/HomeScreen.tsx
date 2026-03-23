@@ -58,6 +58,8 @@ export const HomeScreen: React.FC = () => {
       setWeeklyRank(idx >= 0 ? idx + 1 : undefined);
     } else {
       setWeeklyRankings([]);
+      setChampionName(undefined);
+      setWeeklyRank(undefined);
     }
   };
 
@@ -83,10 +85,11 @@ export const HomeScreen: React.FC = () => {
     sessionType: SessionType
   ): 'completed' | 'pending' | 'due' | 'missed' => {
     if (session?.status === 'completed') return 'completed';
-    const scheduledTime =
+    const scheduledTime = session?.scheduledTime ?? (
       sessionType === 'morning'
         ? (user?.morningTime ?? '08:00')
-        : (user?.eveningTime ?? '21:00');
+        : (user?.eveningTime ?? '21:00')
+    );
     const mins = minutesSinceScheduled(scheduledTime);
     if (mins > 60) return 'missed';
     if (mins >= 0) return 'due'; // fırçalama saati geldi

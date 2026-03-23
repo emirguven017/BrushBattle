@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import CountryFlag from 'react-native-country-flag';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { TimePicker24 } from '../components/TimePicker24';
 import { colors } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
@@ -19,9 +20,13 @@ import { useIntro } from '../context/IntroContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { NotificationService } from '../services/NotificationService';
+import { BrushingService } from '../services/BrushingService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GroupService } from '../services/GroupService';
 
 export const SettingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const nav = useNavigation();
   const { user, refreshUser, logOut } = useAuth();
   const { t, language, setLanguage } = useLanguage();
   const { requestShowIntroAgain } = useIntro();
@@ -31,11 +36,25 @@ export const SettingsScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [showMorningPicker, setShowMorningPicker] = useState(false);
   const [showEveningPicker, setShowEveningPicker] = useState(false);
+  const bypassGuardRef = useRef(false);
 
-  const handleSave = async () => {
-    if (!user) return;
+  const initialValues = useMemo(() => ({
+    username: user?.username ?? '',
+    morningTime: user?.morningTime ?? '08:00',
+    eveningTime: user?.eveningTime ?? '21:00'
+  }), [user?.username, user?.morningTime, user?.eveningTime]);
+
+  const hasUnsavedChanges =
+    username.trim() !== initialValues.username ||
+    morningTime !== initialValues.morningTime ||
+    eveningTime !== initialValues.eveningTime;
+
+  const handleSave = useCallback(async (): Promise<boolean> => {
+    if (!user) return false;
     setSaving(true);
     try {
+      // Bugünün seans saatlerini önce kilitle; kullanıcı saat değiştirerek geçmiş seansı kurtaramasın.
+      await BrushingService.lockTodayScheduleForUser(user);
       await updateDoc(doc(db, 'users', user.id), {
         username: username.trim(),
         morningTime: morningTime || '08:00',
@@ -43,11 +62,80 @@ export const SettingsScreen: React.FC = () => {
       });
       await refreshUser();
       const updatedUser = { ...user, morningTime: morningTime || '08:00', eveningTime: eveningTime || '21:00' };
+      await AsyncStorage.removeItem(`daily_reminder_signature_${user.id}`);
       await NotificationService.syncDailyBaseReminders(updatedUser);
+      Alert.alert(t('info'), t('saved'));
+      return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('couldNotSave');
+      Alert.alert(t('error'), msg || t('couldNotSave'));
+      return false;
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, username, morningTime, eveningTime, refreshUser, t]);
+
+  const confirmUnsavedChanges = useCallback(
+    (onDiscard: () => void) => {
+      Alert.alert(
+        t('unsavedChangesTitle'),
+        t('unsavedChangesMessage'),
+        [
+          { text: t('cancel'), style: 'cancel' },
+          { text: t('discardChanges'), style: 'destructive', onPress: onDiscard },
+          {
+            text: t('save'),
+            onPress: async () => {
+              const ok = await handleSave();
+              if (ok) onDiscard();
+            }
+          }
+        ]
+      );
+    },
+    [t, handleSave]
+  );
+
+  useEffect(() => {
+    const unsubscribe = nav.addListener('beforeRemove', (e) => {
+      if (bypassGuardRef.current) {
+        bypassGuardRef.current = false;
+        return;
+      }
+      if (!hasUnsavedChanges || saving) return;
+      e.preventDefault();
+      confirmUnsavedChanges(() => {
+        bypassGuardRef.current = true;
+        nav.dispatch(e.data.action);
+      });
+    });
+    return unsubscribe;
+  }, [nav, hasUnsavedChanges, saving, confirmUnsavedChanges]);
+
+  useEffect(() => {
+    const parent = nav.getParent() as unknown as {
+      addListener: (event: 'tabPress', cb: (e: { target?: string; preventDefault: () => void }) => void) => () => void;
+      getState: () => { routes: Array<{ key: string; name: string }> };
+      navigate: (name: string) => void;
+    } | undefined;
+    if (!parent) return;
+    const unsubTabPress = parent.addListener('tabPress', (e) => {
+      if (bypassGuardRef.current) {
+        bypassGuardRef.current = false;
+        return;
+      }
+      if (!hasUnsavedChanges || saving) return;
+      const state = parent.getState();
+      const targetRoute = state.routes.find((r) => r.key === e.target);
+      if (!targetRoute || targetRoute.name === 'Settings') return;
+      e.preventDefault();
+      confirmUnsavedChanges(() => {
+        bypassGuardRef.current = true;
+        parent.navigate(targetRoute.name);
+      });
+    });
+    return unsubTabPress;
+  }, [nav, hasUnsavedChanges, saving, confirmUnsavedChanges]);
 
   const handleShowIntroAgain = async () => {
     await requestShowIntroAgain();
@@ -59,7 +147,21 @@ export const SettingsScreen: React.FC = () => {
       t('leaveGroupConfirm'),
       [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('leave'), style: 'destructive', onPress: () => {} }
+        {
+          text: t('leave'),
+          style: 'destructive',
+          onPress: async () => {
+            if (!user?.groupId) return;
+            try {
+              await GroupService.leaveGroup(user.id, user.groupId);
+              await refreshUser();
+              Alert.alert(t('info'), t('leftGroup'));
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : t('groupActionFailed');
+              Alert.alert(t('error'), msg || t('groupActionFailed'));
+            }
+          }
+        }
       ]
     );
   };
@@ -307,7 +409,11 @@ const styles = StyleSheet.create({
   leaveBtn: {
     marginTop: 12,
     padding: 16,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderRadius: 16,
+    backgroundColor: colors.card
   },
   leaveBtnText: { color: colors.warning, fontSize: 16, fontWeight: '600' },
   showIntroBtn: {

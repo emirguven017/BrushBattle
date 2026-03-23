@@ -27,7 +27,7 @@ import { NotificationService } from '../services/NotificationService';
 const CATEGORIES: MarketCategory[] = ['attack', 'defense', 'boost'];
 
 const normalizeMarketError = (e: unknown, t: (key: string) => string): string => {
-  const msg = e instanceof Error ? e.message : 'Islem basarisiz.';
+  const msg = e instanceof Error ? e.message : t('somethingWrong');
   if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('permission')) {
     return t('unavailableTryAgain');
   }
@@ -49,7 +49,6 @@ export const BRMarketScreen: React.FC = () => {
   const [effects, setEffects] = useState<import('../types').ActiveEffect[]>([]);
   const [members, setMembers] = useState<User[]>([]);
   const [targetUserId, setTargetUserId] = useState<string | undefined>(selectedFromRoute);
-  const [events, setEvents] = useState<string[]>([]);
 
   const marketItems = useMemo(() => {
     const titleKey: Record<MarketItemId, string> = {
@@ -79,16 +78,14 @@ export const BRMarketScreen: React.FC = () => {
 
   const load = async () => {
     if (!user) return;
-    const [balance, inventory, fx, ev] = await Promise.all([
+    const [balance, inventory, fx] = await Promise.all([
       InventoryService.getBalance(user.id),
       InventoryService.getInventory(user.id),
       EffectService.getEffects(user.id),
-      MarketService.getRecentEvents(user.id),
     ]);
     setBrScore(balance.brScore);
     setItems(inventory.items);
     setEffects(fx.activeEffects);
-    setEvents(ev.map((e) => e.message));
     if (user.groupId) {
       const gm = await GroupService.getGroupMembers(user.groupId);
       setMembers(gm.filter((m) => m.id !== user.id));
@@ -99,6 +96,20 @@ export const BRMarketScreen: React.FC = () => {
   useEffect(() => {
     load().catch(() => {});
   }, [user?.id, user?.groupId]);
+
+  useEffect(() => {
+    if (selectedFromRoute) setTargetUserId(selectedFromRoute);
+  }, [selectedFromRoute]);
+
+  useEffect(() => {
+    if (members.length === 0) {
+      setTargetUserId(undefined);
+      return;
+    }
+    if (!targetUserId || !members.some((m) => m.id === targetUserId)) {
+      setTargetUserId(members[0]?.id);
+    }
+  }, [members, targetUserId]);
 
   const onBuy = async (itemId: MarketItemId) => {
     if (!user) return;
@@ -182,18 +193,6 @@ export const BRMarketScreen: React.FC = () => {
           />
         ))}
 
-        <View style={styles.eventBox}>
-          <Text style={styles.eventTitle}>{t('socialEvents')}</Text>
-          {events.length === 0 ? (
-            <Text style={styles.eventItem}>{t('noEvents')}</Text>
-          ) : (
-            events.map((m, i) => (
-              <Text key={`${m}_${i}`} style={styles.eventItem}>
-                • {m}
-              </Text>
-            ))
-          )}
-        </View>
       </ScrollView>
     </View>
   );
@@ -244,15 +243,5 @@ const styles = StyleSheet.create({
   targetChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   targetChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   targetChipTextActive: { color: colors.white },
-  eventBox: {
-    marginTop: 12,
-    borderRadius: 12,
-    padding: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  eventTitle: { color: colors.text, fontWeight: '800', marginBottom: 8 },
-  eventItem: { color: colors.textSecondary, fontSize: 13, marginBottom: 4 },
 });
 

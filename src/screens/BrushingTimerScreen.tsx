@@ -126,7 +126,11 @@ export const BrushingTimerScreen: React.FC = () => {
   const handleBrushed = async () => {
     if (!session || !user) return;
     try {
-      await BrushingService.completeSession(session, user);
+      const reward = await BrushingService.completeSession(session, user);
+      Alert.alert(
+        t('sessionRewardTitle'),
+        `+${reward.points} ${t('pointsLabel')} • +${reward.br} BR`
+      );
       await refreshUser(); // Güncel puanları göstermek için
       await NotificationService.cancelSessionReminders(user.id, session.sessionType);
       await NotificationService.cancelMissedReminder(user.id, session.sessionType);

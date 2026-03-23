@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
@@ -70,7 +71,10 @@ export const OnboardingScreen: React.FC = () => {
             onPress={() => setShowMorningPicker(true)}
             activeOpacity={0.7}
           >
-            <Text style={styles.timeButtonText}>🕐 {morningTime}</Text>
+            <View style={styles.timeButtonRow}>
+              <Ionicons name="sunny-outline" size={18} color={colors.text} />
+              <Text style={styles.timeButtonText}> {morningTime}</Text>
+            </View>
             <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
           </TouchableOpacity>
           {showMorningPicker && (
@@ -92,7 +96,10 @@ export const OnboardingScreen: React.FC = () => {
             onPress={() => setShowEveningPicker(true)}
             activeOpacity={0.7}
           >
-            <Text style={styles.timeButtonText}>🌙 {eveningTime}</Text>
+            <View style={styles.timeButtonRow}>
+              <Ionicons name="moon-outline" size={18} color={colors.text} />
+              <Text style={styles.timeButtonText}> {eveningTime}</Text>
+            </View>
             <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
           </TouchableOpacity>
           {showEveningPicker && (
@@ -109,12 +116,15 @@ export const OnboardingScreen: React.FC = () => {
         </View>
         <View style={styles.groupCard}>
           <View style={styles.groupHeader}>
-            <Text style={styles.groupIcon}>👥</Text>
+            <Ionicons name="people-outline" size={34} color={colors.primary} />
             <Text style={styles.groupTitle}>{t('groupCreateOrJoin')}</Text>
             <Text style={styles.groupSubtitle}>{t('groupOptionalHint')}</Text>
           </View>
           <View style={styles.groupCreateRow}>
-            <Text style={styles.groupLabel}>✨ {t('newGroupName')}</Text>
+            <View style={styles.groupLabelRow}>
+              <Ionicons name="add-circle-outline" size={14} color={colors.text} />
+              <Text style={styles.groupLabel}> {t('newGroupName')}</Text>
+            </View>
             <TextInput
               style={styles.groupInput}
               placeholder={t('newGroupName')}
@@ -129,7 +139,10 @@ export const OnboardingScreen: React.FC = () => {
             <View style={styles.dividerLine} />
           </View>
           <View style={styles.groupJoinRow}>
-            <Text style={styles.groupLabel}>🔗 {t('inviteCode')}</Text>
+            <View style={styles.groupLabelRow}>
+              <Ionicons name="link-outline" size={14} color={colors.text} />
+              <Text style={styles.groupLabel}> {t('inviteCode')}</Text>
+            </View>
             <TextInput
               style={styles.groupInput}
               placeholder={t('inviteCode')}
@@ -189,6 +202,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text
   },
+  timeButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
   timeButtonHint: {
     fontSize: 12,
     color: colors.muted,
@@ -226,10 +243,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20
   },
-  groupIcon: {
-    fontSize: 40,
-    marginBottom: 8
-  },
   groupTitle: {
     fontSize: 18,
     fontWeight: '800',
@@ -247,11 +260,16 @@ const styles = StyleSheet.create({
   groupJoinRow: {
     marginTop: 4
   },
+  groupLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8
+  },
   groupLabel: {
     fontSize: 14,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8
+    marginBottom: 0
   },
   groupInput: {
     borderWidth: 1,

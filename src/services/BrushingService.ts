@@ -37,11 +37,12 @@ const LATE_THRESHOLD_MS = 60 * 60 * 1000; // 1 saat
 
 /** Seans planlanan saatten 1 saatten fazla geç tamamlandıysa true. Yerel saatle karşılaştırır. */
 const isSessionCompletedLate = (
-  session: { date: string; sessionType: 'morning' | 'evening'; completedAt?: number },
+  session: { date: string; sessionType: 'morning' | 'evening'; completedAt?: number; scheduledTime?: string },
   user: { morningTime?: string; eveningTime?: string }
 ): boolean => {
   try {
-    const timeStr = session.sessionType === 'morning' ? (user.morningTime ?? '08:00') : (user.eveningTime ?? '21:00');
+    const timeStr = session.scheduledTime
+      ?? (session.sessionType === 'morning' ? (user.morningTime ?? '08:00') : (user.eveningTime ?? '21:00'));
     const parts = session.date.split('-');
     const [year, month, day] = parts.map(Number);
     const timeParts = timeStr.split(':');
@@ -58,6 +59,36 @@ const isSessionCompletedLate = (
 };
 
 export const BrushingService = {
+  async lockTodayScheduleForUser(user: User): Promise<void> {
+    const todaySessions = await this.getTodaySessions(user.id);
+    const typeToTime: Record<SessionType, string> = {
+      morning: user.morningTime ?? '08:00',
+      evening: user.eveningTime ?? '21:00'
+    };
+
+    for (const sessionType of ['morning', 'evening'] as const) {
+      const existing = todaySessions.find((s) => s.sessionType === sessionType);
+      if (!existing) {
+        await addDoc(collection(db, 'brushSessions'), {
+          userId: user.id,
+          date: todayKey(),
+          sessionType,
+          scheduledTime: typeToTime[sessionType],
+          status: 'pending',
+          pointsEarned: 0,
+          dayBonusApplied: false
+        } as Omit<BrushSession, 'id'>);
+        continue;
+      }
+      if (existing.status === 'completed') continue;
+      if (!existing.scheduledTime) {
+        await updateDoc(doc(db, 'brushSessions', existing.id), {
+          scheduledTime: typeToTime[sessionType]
+        });
+      }
+    }
+  },
+
   async getTodaySessions(userId: string): Promise<BrushSession[]> {
     const q = query(
       collection(db, 'brushSessions'),
@@ -95,6 +126,7 @@ export const BrushingService = {
       userId: user.id,
       date: todayKey(),
       sessionType,
+      scheduledTime: sessionType === 'morning' ? (user.morningTime ?? '08:00') : (user.eveningTime ?? '21:00'),
       status: 'pending',
       pointsEarned: 0,
       dayBonusApplied: false
@@ -104,9 +136,9 @@ export const BrushingService = {
     return { id: ref.id, ...base };
   },
 
-  async completeSession(session: BrushSession, user: User): Promise<void> {
+  async completeSession(session: BrushSession, user: User): Promise<{ points: number; br: number }> {
     // Seans zaten tamamlanmışsa tekrar puan vermeyelim
-    if (session.status === 'completed') return;
+    if (session.status === 'completed') return { points: 0, br: 0 };
 
     const sessionRef = doc(db, 'brushSessions', session.id);
     const userRef = doc(db, 'users', user.id);
@@ -116,6 +148,7 @@ export const BrushingService = {
     const lateSession = {
       date: session.date,
       sessionType: session.sessionType,
+      scheduledTime: session.scheduledTime,
       completedAt
     };
     const isLate = isSessionCompletedLate(lateSession, user);
@@ -130,6 +163,8 @@ export const BrushingService = {
     // Comeback mekanigi: dusuk puanli kullanicilar ufak BR destegi alir. Geç tamamlanmışsa BR yok.
     const comebackBr = isLate ? 0 : (user.points ?? 0) < 100 ? 2 : 0;
     const brToAdd = isLate ? 0 : SESSION_BR + comebackBr;
+    let gainedPoints = pointsToGrant;
+    let gainedBr = brToAdd;
 
     await updateDoc(sessionRef, {
       status: 'completed',
@@ -194,6 +229,7 @@ export const BrushingService = {
       const bonusCarrier = eveningDone;
       if (bonusCarrier && !bonusCarrier.dayBonusApplied) {
         await updateDoc(userRef, { points: increment(DAILY_BONUS_POINTS) });
+        gainedPoints += DAILY_BONUS_POINTS;
         await WeeklyRewardService.addWeeklyPoints({
           groupId: user.groupId,
           userId: user.id,
@@ -202,6 +238,7 @@ export const BrushingService = {
           points: DAILY_BONUS_POINTS,
         });
         await InventoryService.addBrScore(user.id, DAILY_BONUS_BR);
+        gainedBr += DAILY_BONUS_BR;
         await updateDoc(doc(db, 'brushSessions', bonusCarrier.id), {
           dayBonusApplied: true
         });
@@ -217,13 +254,16 @@ export const BrushingService = {
         const streakBonus = STREAK_BONUSES[newStreak];
         if (streakBonus) {
           await updateDoc(userRef, { points: increment(streakBonus) });
+          gainedPoints += streakBonus;
         }
         const streakBrBonus = STREAK_BR_BONUSES[newStreak];
         if (streakBrBonus) {
           await InventoryService.addBrScore(user.id, streakBrBonus);
+          gainedBr += streakBrBonus;
         }
       }
     }
+    return { points: gainedPoints, br: gainedBr };
   }
 };
 

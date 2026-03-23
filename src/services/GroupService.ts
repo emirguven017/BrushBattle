@@ -6,7 +6,8 @@ import {
   query,
   where,
   updateDoc,
-  doc
+  doc,
+  arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import type { Group } from '../types';
@@ -61,6 +62,13 @@ export const GroupService = {
     const q = query(collection(db, 'users'), where('groupId', '==', groupId));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as import('../types').User));
+  },
+
+  async leaveGroup(userId: string, groupId: string): Promise<void> {
+    await Promise.all([
+      updateDoc(doc(db, 'groups', groupId), { members: arrayRemove(userId) }),
+      updateDoc(doc(db, 'users', userId), { groupId: null })
+    ]);
   }
 };
 

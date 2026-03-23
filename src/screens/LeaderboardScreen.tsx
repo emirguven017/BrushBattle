@@ -92,7 +92,7 @@ export const LeaderboardScreen: React.FC = () => {
           </View>
         }
         renderItem={({ item, index }) => (
-          <View>
+          <View style={styles.rowWrap}>
             <LeaderboardItem
               rank={index + 1}
               username={item.username}
@@ -186,18 +186,33 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 16, color: colors.muted }
   ,
+  rowWrap: {
+    position: 'relative',
+    marginBottom: 6
+  },
   targetBtn: {
-    alignSelf: 'flex-end',
-    backgroundColor: colors.accentLight,
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    marginTop: -14,
+    backgroundColor: colors.accent,
+    minWidth: 88,
+    height: 28,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginBottom: 10,
-    marginTop: -4,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4
   },
   targetBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.white,
+    textAlign: 'center',
+    lineHeight: 12
   }
 });
