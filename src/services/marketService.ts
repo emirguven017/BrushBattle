@@ -71,14 +71,16 @@ export const MarketService = {
 
     if (itemId === 'freeze' || itemId === 'score_drop') {
       if (!targetUserId) throw new Error('ERR_TARGET_REQUIRED');
+      if (targetUserId === userId) throw new Error('ERR_SELF_ATTACK');
+
+      const attackerSnap = await getDoc(doc(db, 'users', userId));
+      const attacker = attackerSnap.data() as { groupId?: string; username?: string } | undefined;
+      if (!attacker?.groupId) throw new Error('ERR_NO_GROUP');
+
       const canUse = await this.canUseAttackToday(userId);
       if (!canUse) throw new Error('ERR_DAILY_ATTACK_LIMIT');
 
       await InventoryService.consumeItem(userId, itemId, 1);
-
-      const attackerSnap = await getDoc(doc(db, 'users', userId));
-      const attacker = attackerSnap.data() as { groupId?: string; username?: string } | undefined;
-      if (!attacker?.groupId) throw new Error('Grup bulunamadi.');
 
       const leaderboard = await LeaderboardService.getGroupLeaderboard(attacker.groupId);
       const rank1 = leaderboard[0]?.userId;
@@ -193,8 +195,8 @@ export const MarketService = {
     itemId: 'freeze' | 'score_drop',
     attacker: { groupId?: string; username?: string }
   ): Promise<void> {
-    if (userId === targetUserId) throw new Error('Kendine saldiri yapamazsin.');
-    if (!attacker?.groupId) throw new Error('Grup bulunamadi.');
+    if (userId === targetUserId) throw new Error('ERR_SELF_ATTACK');
+    if (!attacker?.groupId) throw new Error('ERR_NO_GROUP');
 
     if (itemId === 'freeze') {
       await EffectService.addEffect(targetUserId, {

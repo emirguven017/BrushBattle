@@ -170,6 +170,8 @@ export const UseFeatureScreen: React.FC = () => {
       return t('attackTargetZeroPoints').replace('{name}', attackTargetName ?? '…');
     }
     if (msg === 'ERR_TARGET_REQUIRED') return t('selectTargetFirst');
+    if (msg === 'ERR_SELF_ATTACK') return t('cannotAttackSelf');
+    if (msg === 'ERR_NO_GROUP') return t('joinGroupFirst');
     if (msg === 'ERR_DAILY_ATTACK_LIMIT') return t('dailyAttackLimitReached');
     if (msg === 'ERR_DOUBLE_POINTS_ACTIVE') return t('doublePointsAlreadyActive');
     if (msg === 'ERR_STREAK_SAVER_ACTIVE') return t('streakSaverAlreadyActive');
@@ -181,9 +183,15 @@ export const UseFeatureScreen: React.FC = () => {
   const performUse = async (itemId: MarketItemId) => {
     if (!user || busyItemId) return;
     const isAttack = ATTACK_ITEMS.includes(itemId);
-    if (isAttack && !targetUserId) {
-      Alert.alert(t('info'), t('selectTargetFirst'));
-      return;
+    if (isAttack) {
+      if (!user.groupId) {
+        Alert.alert(t('error'), t('joinGroupFirst'));
+        return;
+      }
+      if (!targetUserId || targetUserId === user.id) {
+        Alert.alert(t('error'), t('cannotAttackSelf'));
+        return;
+      }
     }
 
     try {
@@ -203,6 +211,16 @@ export const UseFeatureScreen: React.FC = () => {
   const onUse = (itemId: MarketItemId) => {
     if (!user || busyItemId) return;
     const isAttack = ATTACK_ITEMS.includes(itemId);
+    if (isAttack) {
+      if (!user.groupId) {
+        Alert.alert(t('error'), t('joinGroupFirst'));
+        return;
+      }
+      if (!targetUserId || targetUserId === user.id) {
+        Alert.alert(t('error'), t('cannotAttackSelf'));
+        return;
+      }
+    }
     const featureName = t(itemTitleKey[itemId]);
     const targetName = members.find((m) => m.id === targetUserId)?.username ?? t('you');
     const message = isAttack
