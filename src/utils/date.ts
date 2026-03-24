@@ -13,4 +13,10 @@ export const dateKey = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
+export const yesterdayKey = (): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return dateKey(d);
+};
+
 

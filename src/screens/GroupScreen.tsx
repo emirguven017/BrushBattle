@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
@@ -284,9 +284,7 @@ const styles = StyleSheet.create({
   },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.white
+    ...headerTitle
   },
   sectionTitle: {
     fontSize: 18,

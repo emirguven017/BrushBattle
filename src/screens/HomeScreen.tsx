@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Modal
+  Modal,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -17,7 +18,7 @@ import { BrushingService } from '../services/BrushingService';
 import { NotificationService } from '../services/NotificationService';
 import { InventoryService } from '../services/inventoryService';
 import { LeaderboardService } from '../services/LeaderboardService';
-import { StreakCard, BRBalanceCard, WeeklySummaryCard } from '../components';
+import { StreakCard, WeeklySummaryCard } from '../components';
 import type { BrushSession, SessionType } from '../types';
 
 const minutesSinceScheduled = (timeStr: string): number => {
@@ -69,6 +70,37 @@ export const HomeScreen: React.FC = () => {
     }, [user?.id, user?.groupId])
   );
 
+  const goToBrMarket = useCallback(() => {
+    const parentNav = nav.getParent();
+    if (parentNav) {
+      (parentNav as { navigate: (name: string) => void }).navigate('BRMarket');
+      return;
+    }
+    (nav as { navigate: (name: string) => void }).navigate('BRMarket');
+  }, [nav]);
+
+  useLayoutEffect(() => {
+    (nav as {
+      setOptions: (opts: {
+        headerRight: () => React.ReactNode;
+      }) => void;
+    }).setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.headerBrRow}
+          onPress={goToBrMarket}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('market')}
+        >
+          <Ionicons name="diamond" size={14} color="#000000" />
+          <Text style={styles.headerBrText}>{brScore}</Text>
+        </TouchableOpacity>
+      )
+    });
+  }, [nav, brScore, goToBrMarket, t]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await load().catch(() => {});
@@ -111,6 +143,10 @@ export const HomeScreen: React.FC = () => {
         { session }
       );
     } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code === 'TOO_EARLY_TO_START') {
+        Alert.alert(t('notYet'), t('canStartOnlyOneHourBefore'));
+      }
       load();
     }
   };
@@ -228,19 +264,6 @@ export const HomeScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.brSection}>
-        <BRBalanceCard brScore={brScore} />
-        <TouchableOpacity
-          style={styles.marketBtn}
-          onPress={() => (nav as { navigate: (n: string, p?: object) => void }).navigate('BRMarket')}
-        >
-          <View style={styles.taskBtnContent}>
-            <Ionicons name="cart" size={18} color={colors.white} />
-            <Text style={styles.marketBtnText}> {t('goToMarket')}</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.progressCard}>
         <Text style={styles.progressLabel}>{t('dailyProgress')}</Text>
         <View style={styles.progressBar}>
@@ -330,6 +353,17 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingBottom: 16
   },
+  headerBrRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingRight: 5
+  },
+  headerBrText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '700'
+  },
   greeting: {
     fontSize: 16,
     fontWeight: '600',
@@ -392,10 +426,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6
-  },
-  taskBtnContent: {
-    flexDirection: 'row',
-    alignItems: 'center'
   },
   motivationIcon: {
     fontSize: 24
@@ -513,24 +543,9 @@ const styles = StyleSheet.create({
   previewRow: { flex: 1, fontSize: 15, color: colors.text, fontWeight: '600', marginLeft: 8 },
   previewRowYou: { color: colors.primary },
   previewPoints: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  brSection: {
-    marginBottom: 16,
-  },
   weeklySection: {
     marginTop: 24,
     marginBottom: 8,
-  },
-  marketBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  marketBtnText: {
-    color: colors.white,
-    fontWeight: '800',
-    fontSize: 14,
   },
   modalBackdrop: {
     flex: 1,

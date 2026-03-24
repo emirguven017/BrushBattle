@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { LeaderboardService } from '../services/LeaderboardService';
@@ -47,7 +47,7 @@ export const LeaderboardScreen: React.FC = () => {
       <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
-            <Text style={styles.title}>{t('scoreTitle')}</Text>
+            <Text style={styles.title}>{t('weeklyScoreTitle')}</Text>
           </View>
         </View>
         <View style={styles.empty}>
@@ -63,7 +63,6 @@ export const LeaderboardScreen: React.FC = () => {
         <View style={styles.titleBar}>
           <Text style={styles.title}>{t('weeklyScoreTitle')}</Text>
         </View>
-        <Text style={styles.subtitle}>{t('weeklyRankingSubtitle')}</Text>
       </View>
       <View style={styles.content}>
       <View style={styles.rewardWrap}>
@@ -101,18 +100,16 @@ export const LeaderboardScreen: React.FC = () => {
               isCurrentUser={item.userId === user.id}
               completedToday={undefined}
             />
-            {item.userId !== user.id && (
-              <TouchableOpacity
-                style={styles.targetBtn}
-                onPress={() =>
-                  (nav as { navigate: (n: string, p?: object) => void }).navigate('BRMarket', {
-                    targetUserId: item.userId,
-                  })
-                }
-              >
-                <Text style={styles.targetBtnText}>{t('selectTargetMarket')}</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.targetBtn}
+              onPress={() =>
+                (nav as { navigate: (n: string, p?: object) => void }).navigate('UseFeature', {
+                  targetUserId: item.userId,
+                })
+              }
+            >
+              <Text style={styles.targetBtnText}>{t('selectTargetMarket')}</Text>
+            </TouchableOpacity>
           </View>
         )}
       />
@@ -132,17 +129,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.white
-  },
-  subtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
-    marginTop: -4,
-    marginBottom: 12,
-    paddingHorizontal: 20
+    ...headerTitle
   },
   content: { flex: 1 },
   rewardWrap: {

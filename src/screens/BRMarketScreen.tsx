@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import type { MarketCategory, MarketItemId, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
@@ -25,9 +25,34 @@ import { GroupService } from '../services/GroupService';
 import { NotificationService } from '../services/NotificationService';
 
 const CATEGORIES: MarketCategory[] = ['attack', 'defense', 'boost'];
+const ITEM_TITLE_KEYS: Record<MarketItemId, string> = {
+  freeze: 'marketItemFreezeTitle',
+  score_drop: 'marketItemScoreDropTitle',
+  shield: 'marketItemShieldTitle',
+  streak_saver: 'marketItemStreakSaverTitle',
+  double_points: 'marketItemDoublePointsTitle',
+  rank_booster: 'marketItemRankBoosterTitle',
+};
 
-const normalizeMarketError = (e: unknown, t: (key: string) => string): string => {
+const normalizeMarketError = (
+  e: unknown,
+  t: (key: string) => string,
+  attackTargetName?: string
+): string => {
   const msg = e instanceof Error ? e.message : t('somethingWrong');
+  if (msg === 'ERR_SCORE_DROP_BLOCKED') {
+    return t('scoreDropBlockedByShield').replace('{name}', attackTargetName ?? '…');
+  }
+  if (msg === 'ERR_FREEZE_BLOCKED') {
+    return t('freezeBlockedByShield').replace('{name}', attackTargetName ?? '…');
+  }
+  if (msg === 'ERR_ATTACK_TARGET_ZERO_POINTS') {
+    return t('attackTargetZeroPoints').replace('{name}', attackTargetName ?? '…');
+  }
+  if (msg === 'ERR_TARGET_REQUIRED') return t('selectTargetFirst');
+  if (msg === 'ERR_DAILY_ATTACK_LIMIT') return t('dailyAttackLimitReached');
+  if (msg === 'ERR_DOUBLE_POINTS_ACTIVE') return t('doublePointsAlreadyActive');
+  if (msg === 'ERR_STREAK_SAVER_ACTIVE') return t('streakSaverAlreadyActive');
   if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('permission')) {
     return t('unavailableTryAgain');
   }
@@ -51,14 +76,6 @@ export const BRMarketScreen: React.FC = () => {
   const [targetUserId, setTargetUserId] = useState<string | undefined>(selectedFromRoute);
 
   const marketItems = useMemo(() => {
-    const titleKey: Record<MarketItemId, string> = {
-      freeze: 'marketItemFreezeTitle',
-      score_drop: 'marketItemScoreDropTitle',
-      shield: 'marketItemShieldTitle',
-      streak_saver: 'marketItemStreakSaverTitle',
-      double_points: 'marketItemDoublePointsTitle',
-      rank_booster: 'marketItemRankBoosterTitle',
-    };
     const descKey: Record<MarketItemId, string> = {
       freeze: 'marketItemFreezeDesc',
       score_drop: 'marketItemScoreDropDesc',
@@ -71,7 +88,7 @@ export const BRMarketScreen: React.FC = () => {
       .filter((i) => i.category === tab)
       .map((i) => ({
         ...i,
-        title: t(titleKey[i.id]),
+        title: t(ITEM_TITLE_KEYS[i.id]),
         description: t(descKey[i.id]),
       }));
   }, [tab, t]);
@@ -116,7 +133,7 @@ export const BRMarketScreen: React.FC = () => {
     try {
       await MarketService.buyItem(user.id, itemId);
       await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifPurchased'));
-      Alert.alert(t('info'), t('itemPurchased'));
+      Alert.alert(t('info'), `${t(ITEM_TITLE_KEYS[itemId])} ${t('itemPurchasedSuffix')}`);
       await load();
     } catch (e) {
       Alert.alert(t('error'), normalizeMarketError(e, t));
@@ -125,15 +142,70 @@ export const BRMarketScreen: React.FC = () => {
 
   const onUse = async (itemId: MarketItemId) => {
     if (!user) return;
+    const isAttack = itemId === 'freeze' || itemId === 'score_drop';
+    const targetName = members.find((m) => m.id === targetUserId)?.username ?? t('you');
+    const featureName = t(ITEM_TITLE_KEYS[itemId]);
+    const message = isAttack
+      ? t('confirmUseFeatureTargetMessage').replace('{target}', targetName).replace('{feature}', featureName)
+      : t('confirmUseFeatureSelfMessage').replace('{feature}', featureName);
+
+    Alert.alert(
+      t('confirmUseFeatureTitle'),
+      message,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('use'),
+          onPress: async () => {
+            try {
+              await MarketService.useItem(user.id, itemId, isAttack ? targetUserId : undefined);
+              await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifUsed'));
+              Alert.alert(t('info'), t('itemUsed'));
+              await load();
+            } catch (e) {
+              const attackTargetName = members.find((m) => m.id === targetUserId)?.username;
+              Alert.alert(t('error'), normalizeMarketError(e, t, attackTargetName));
+              await load().catch(() => {});
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const onClaimFreeBr = async () => {
+    if (!user) return;
     try {
-      const isAttack = itemId === 'freeze' || itemId === 'score_drop';
-      await MarketService.useItem(user.id, itemId, isAttack ? targetUserId : undefined);
-      await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifUsed'));
-      Alert.alert(t('info'), t('itemUsed'));
+      await InventoryService.addBrScore(user.id, 100);
+      Alert.alert(t('info'), t('freeBrClaimed'));
       await load();
     } catch (e) {
       Alert.alert(t('error'), normalizeMarketError(e, t));
     }
+  };
+
+  const onClearActiveEffects = async () => {
+    if (!user) return;
+    Alert.alert(
+      t('clearActiveEffectsTitle'),
+      t('clearActiveEffectsConfirm'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('clearActiveEffectsCta'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await EffectService.clearAllEffects(user.id);
+              Alert.alert(t('info'), t('activeEffectsCleared'));
+              await load();
+            } catch (e) {
+              Alert.alert(t('error'), normalizeMarketError(e, t));
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (!user) return null;
@@ -193,6 +265,24 @@ export const BRMarketScreen: React.FC = () => {
           />
         ))}
 
+        <View style={styles.freeBrCard}>
+          <Text style={styles.freeBrTitle}>{t('freeBrTitle')}</Text>
+          <Text style={styles.freeBrDesc}>{t('freeBrDesc')}</Text>
+          <TouchableOpacity style={styles.freeBrBtn} onPress={onClaimFreeBr} activeOpacity={0.85}>
+            <Ionicons name="gift" size={18} color={colors.white} />
+            <Text style={styles.freeBrBtnText}>{t('claim100Br')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.clearEffectsCard}>
+          <Text style={styles.clearEffectsTitle}>{t('clearActiveEffectsTitle')}</Text>
+          <Text style={styles.clearEffectsDesc}>{t('clearActiveEffectsDesc')}</Text>
+          <TouchableOpacity style={styles.clearEffectsBtn} onPress={onClearActiveEffects} activeOpacity={0.85}>
+            <Ionicons name="trash" size={18} color={colors.white} />
+            <Text style={styles.clearEffectsBtnText}>{t('clearActiveEffectsCta')}</Text>
+          </TouchableOpacity>
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -208,7 +298,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '800', color: colors.white },
+  title: { ...headerTitle },
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 16, paddingBottom: 40 },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 10 },
@@ -243,5 +333,71 @@ const styles = StyleSheet.create({
   targetChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   targetChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   targetChipTextActive: { color: colors.white },
+  freeBrCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 14,
+    marginTop: 10
+  },
+  freeBrTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text
+  },
+  freeBrDesc: {
+    marginTop: 4,
+    marginBottom: 12,
+    fontSize: 13,
+    color: colors.textSecondary
+  },
+  freeBrBtn: {
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8
+  },
+  freeBrBtnText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  clearEffectsCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 14,
+    marginTop: 10
+  },
+  clearEffectsTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text
+  },
+  clearEffectsDesc: {
+    marginTop: 4,
+    marginBottom: 12,
+    fontSize: 13,
+    color: colors.textSecondary
+  },
+  clearEffectsBtn: {
+    borderRadius: 10,
+    backgroundColor: colors.error,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8
+  },
+  clearEffectsBtnText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '800'
+  },
 });
 

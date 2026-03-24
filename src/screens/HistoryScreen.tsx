@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
@@ -212,9 +212,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.white
+    ...headerTitle
   },
   legend: {
     flexDirection: 'row',

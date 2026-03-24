@@ -20,3 +20,10 @@ export const colors = {
   gradientStart: '#2ECC71',
   gradientEnd: '#27AE60'
 };
+
+/** Native stack başlığı (Home/Timer) ile aynı — yeşil header metinleri */
+export const headerTitle = {
+  fontSize: 18,
+  fontWeight: '700' as const,
+  color: '#FFFFFF'
+};

@@ -23,9 +23,11 @@ import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { BRMarketScreen } from './src/screens/BRMarketScreen';
-import { colors } from './src/utils/colors';
+import { UseFeatureScreen } from './src/screens/UseFeatureScreen';
+import { colors, headerTitle } from './src/utils/colors';
 import { GroupService } from './src/services/GroupService';
 import { NotificationService } from './src/services/NotificationService';
+import { NotificationInboxService } from './src/services/notificationInboxService';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -36,7 +38,10 @@ const headerOptions = {
   headerStyle: { backgroundColor: colors.primary },
   headerTintColor: colors.white,
   headerTitleAlign: 'center' as const,
-  headerTitleStyle: { fontWeight: '700', fontSize: 18 }
+  headerTitleStyle: {
+    fontSize: headerTitle.fontSize,
+    fontWeight: headerTitle.fontWeight
+  }
 };
 
 const HomeStack: React.FC = () => {
@@ -46,13 +51,22 @@ const HomeStack: React.FC = () => {
       <Stack.Screen
         name="HomeMain"
         component={HomeScreen}
-        options={{ title: t('appName') }}
+        options={{ title: t('homeHeaderTitle') }}
       />
       <Stack.Screen
         name="BrushingTimer"
         component={BrushingTimerScreen}
         options={{ title: t('brushingTime') }}
       />
+    </Stack.Navigator>
+  );
+};
+
+const LeaderboardStack: React.FC = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="LeaderboardMain" component={LeaderboardScreen} />
+      <Stack.Screen name="UseFeature" component={UseFeatureScreen} />
     </Stack.Navigator>
   );
 };
@@ -96,7 +110,14 @@ const AppTabs: React.FC = () => {
       />
       <Tab.Screen
         name="Leaderboard"
-        component={LeaderboardScreen}
+        component={LeaderboardStack}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            (navigation as { navigate: (name: string, params?: object) => void }).navigate('Leaderboard', {
+              screen: 'LeaderboardMain',
+            });
+          },
+        })}
         options={{
           tabBarLabel: t('score'),
           tabBarIcon: ({ focused, color, size }) => <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={size} color={color} />
@@ -199,6 +220,11 @@ const RootNavigatorInner: React.FC = () => {
     if (!user) return;
     NotificationService.syncDailyBaseReminders(user).catch(() => {});
   }, [user?.id, user?.morningTime, user?.eveningTime]);
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    return NotificationInboxService.subscribeInbox(user.id);
+  }, [user?.id]);
 
   const needsOnboarding = user && !user.onboardingComplete;
   const needsNewUserIntro = needsOnboarding && hasSeenIntroForNewUser !== true;

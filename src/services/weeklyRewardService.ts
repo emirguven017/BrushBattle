@@ -176,5 +176,22 @@ export const WeeklyRewardService = {
     }
     return snap.data() as UserStats;
   },
+
+  async syncUsernameAcrossWeeklyEntries(userId: string, username: string): Promise<void> {
+    const normalized = username.trim();
+    if (!normalized) return;
+    try {
+      const q = query(wlCol, where('userId', '==', userId));
+      const snap = await getDocs(q);
+      await Promise.all(
+        snap.docs.map((d) => updateDoc(doc(db, 'weeklyLeaderboard', d.id), { username: normalized }))
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message.toLowerCase() : '';
+      // Bazı eski haftalik kayitlara erişim izni olmayabilir; ayarlar kaydini engelleme.
+      if (msg.includes('missing or insufficient permissions') || msg.includes('offline')) return;
+      throw e;
+    }
+  }
 };
 

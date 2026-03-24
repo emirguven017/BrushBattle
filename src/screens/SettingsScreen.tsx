@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import CountryFlag from 'react-native-country-flag';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { TimePicker24 } from '../components/TimePicker24';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useIntro } from '../context/IntroContext';
@@ -23,6 +23,7 @@ import { NotificationService } from '../services/NotificationService';
 import { BrushingService } from '../services/BrushingService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroupService } from '../services/GroupService';
+import { WeeklyRewardService } from '../services/weeklyRewardService';
 
 export const SettingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -36,7 +37,6 @@ export const SettingsScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [showMorningPicker, setShowMorningPicker] = useState(false);
   const [showEveningPicker, setShowEveningPicker] = useState(false);
-  const bypassGuardRef = useRef(false);
 
   const initialValues = useMemo(() => ({
     username: user?.username ?? '',
@@ -60,11 +60,11 @@ export const SettingsScreen: React.FC = () => {
         morningTime: morningTime || '08:00',
         eveningTime: eveningTime || '21:00'
       });
+      await WeeklyRewardService.syncUsernameAcrossWeeklyEntries(user.id, username.trim());
       await refreshUser();
       const updatedUser = { ...user, morningTime: morningTime || '08:00', eveningTime: eveningTime || '21:00' };
       await AsyncStorage.removeItem(`daily_reminder_signature_${user.id}`);
       await NotificationService.syncDailyBaseReminders(updatedUser);
-      Alert.alert(t('info'), t('saved'));
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('couldNotSave');
@@ -74,68 +74,6 @@ export const SettingsScreen: React.FC = () => {
       setSaving(false);
     }
   }, [user, username, morningTime, eveningTime, refreshUser, t]);
-
-  const confirmUnsavedChanges = useCallback(
-    (onDiscard: () => void) => {
-      Alert.alert(
-        t('unsavedChangesTitle'),
-        t('unsavedChangesMessage'),
-        [
-          { text: t('cancel'), style: 'cancel' },
-          { text: t('discardChanges'), style: 'destructive', onPress: onDiscard },
-          {
-            text: t('save'),
-            onPress: async () => {
-              const ok = await handleSave();
-              if (ok) onDiscard();
-            }
-          }
-        ]
-      );
-    },
-    [t, handleSave]
-  );
-
-  useEffect(() => {
-    const unsubscribe = nav.addListener('beforeRemove', (e) => {
-      if (bypassGuardRef.current) {
-        bypassGuardRef.current = false;
-        return;
-      }
-      if (!hasUnsavedChanges || saving) return;
-      e.preventDefault();
-      confirmUnsavedChanges(() => {
-        bypassGuardRef.current = true;
-        nav.dispatch(e.data.action);
-      });
-    });
-    return unsubscribe;
-  }, [nav, hasUnsavedChanges, saving, confirmUnsavedChanges]);
-
-  useEffect(() => {
-    const parent = nav.getParent() as unknown as {
-      addListener: (event: 'tabPress', cb: (e: { target?: string; preventDefault: () => void }) => void) => () => void;
-      getState: () => { routes: Array<{ key: string; name: string }> };
-      navigate: (name: string) => void;
-    } | undefined;
-    if (!parent) return;
-    const unsubTabPress = parent.addListener('tabPress', (e) => {
-      if (bypassGuardRef.current) {
-        bypassGuardRef.current = false;
-        return;
-      }
-      if (!hasUnsavedChanges || saving) return;
-      const state = parent.getState();
-      const targetRoute = state.routes.find((r) => r.key === e.target);
-      if (!targetRoute || targetRoute.name === 'Settings') return;
-      e.preventDefault();
-      confirmUnsavedChanges(() => {
-        bypassGuardRef.current = true;
-        parent.navigate(targetRoute.name);
-      });
-    });
-    return unsubTabPress;
-  }, [nav, hasUnsavedChanges, saving, confirmUnsavedChanges]);
 
   const handleShowIntroAgain = async () => {
     await requestShowIntroAgain();
@@ -266,9 +204,9 @@ export const SettingsScreen: React.FC = () => {
       </View>
 
       <TouchableOpacity
-        style={styles.saveBtn}
-        onPress={handleSave}
-        disabled={saving}
+        style={[styles.saveBtn, (!hasUnsavedChanges || saving) && styles.saveBtnDisabled]}
+        onPress={() => { handleSave().catch(() => {}); }}
+        disabled={!hasUnsavedChanges || saving}
       >
         <Text style={styles.saveBtnText}>
           {saving ? t('saving') : t('save')}
@@ -308,9 +246,7 @@ const styles = StyleSheet.create({
   },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.white
+    ...headerTitle
   },
   langBtnContent: { flexDirection: 'row', alignItems: 'center' },
   flag: { borderRadius: 2, overflow: 'hidden' },
@@ -404,6 +340,9 @@ const styles = StyleSheet.create({
     padding: 18,
     alignItems: 'center',
     marginTop: 16
+  },
+  saveBtnDisabled: {
+    opacity: 0.5
   },
   saveBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
   leaveBtn: {

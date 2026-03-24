@@ -27,7 +27,8 @@ export const InventoryService = {
 
   async addBrScore(userId: string, amount: number): Promise<void> {
     if (amount === 0) return;
-    await setDoc(balanceRef(userId), { userId, brScore: 0 }, { merge: true });
+    // Dokuman yoksa olustur; mevcutsa brScore degerini sifirlamadan koru.
+    await setDoc(balanceRef(userId), { userId }, { merge: true });
     await updateDoc(balanceRef(userId), { brScore: increment(amount) });
   },
 

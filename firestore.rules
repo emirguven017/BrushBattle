@@ -13,7 +13,15 @@ service cloud.firestore {
         get(/databases/$(database)/documents/groups/$(groupId)).data.members != null &&
         request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
     }
-    
+    function inSameGroup(userA, userB) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(userA)) &&
+        exists(/databases/$(database)/documents/users/$(userB)) &&
+        get(/databases/$(database)/documents/users/$(userA)).data.groupId != null &&
+        get(/databases/$(database)/documents/users/$(userA)).data.groupId ==
+        get(/databases/$(database)/documents/users/$(userB)).data.groupId;
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
@@ -22,7 +30,30 @@ service cloud.firestore {
          request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.members)
       );
       allow create: if isOwner(userId);
-      allow update, delete: if isOwner(userId);
+      allow update: if isOwner(userId) || (
+        // Score Drop: grup ici, sadece points alani ve en fazla 10 puan dusus.
+        isSignedIn() &&
+        request.auth.uid != userId &&
+        inSameGroup(request.auth.uid, userId) &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['points']) &&
+        request.resource.data.points is number &&
+        resource.data.points is number &&
+        request.resource.data.points <= resource.data.points &&
+        (resource.data.points - request.resource.data.points) <= 10
+      );
+      allow delete: if isOwner(userId);
+
+      match /notificationInbox/{notifId} {
+        allow get, list, delete: if isOwner(userId);
+        allow create: if isSignedIn() &&
+          request.auth.uid != userId &&
+          inSameGroup(request.auth.uid, userId) &&
+          request.resource.data.keys().hasOnly(['kind', 'attackerUserId', 'attackItemId', 'createdAt']) &&
+          request.resource.data.kind == 'attack_blocked_by_shield' &&
+          request.resource.data.attackerUserId == request.auth.uid &&
+          request.resource.data.attackItemId in ['freeze', 'score_drop'] &&
+          request.resource.data.createdAt is number;
+      }
     }
 
     match /groups/{groupId} {
@@ -55,7 +86,15 @@ service cloud.firestore {
     }
 
     match /userEffects/{userId} {
-      allow read, create, update, delete: if isOwner(userId);
+      allow read: if isOwner(userId) || inSameGroup(request.auth.uid, userId);
+      allow create, update: if isOwner(userId) || (
+        // Freeze gibi grup ici efekt uygulamalari.
+        isSignedIn() &&
+        request.auth.uid != userId &&
+        inSameGroup(request.auth.uid, userId) &&
+        request.resource.data.userId == userId
+      );
+      allow delete: if isOwner(userId);
     }
 
     match /userStats/{userId} {

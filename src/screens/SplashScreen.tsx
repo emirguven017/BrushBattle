@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import { useLanguage } from '../context/LanguageContext';
 
 export const SplashScreen: React.FC = () => {
@@ -34,9 +34,7 @@ const styles = StyleSheet.create({
     marginBottom: 32
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.white
+    ...headerTitle
   },
   subtitle: {
     fontSize: 14,

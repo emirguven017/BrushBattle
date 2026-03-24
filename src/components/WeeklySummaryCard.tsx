@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../utils/colors';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -53,9 +54,15 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.line}>
-        {t('rankThisWeek')}: {myRank ? `#${myRank}` : '-'}
-      </Text>
+      <View style={styles.rankRow}>
+        <View style={styles.rankLabelWrap}>
+          <Ionicons name="trophy-outline" size={15} color={colors.primary} />
+          <Text style={styles.rankLabel}>{t('rankThisWeek')}</Text>
+        </View>
+        <View style={styles.rankPill}>
+          <Text style={styles.rankPillText}>{myRank ? `#${myRank}` : '-'}</Text>
+        </View>
+      </View>
       <Text style={styles.championLine}>{t('currentChampion')}: {championName ?? '-'}</Text>
       {competitionText ? (
         <View style={styles.competitionBox}>
@@ -75,10 +82,35 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
   },
-  line: {
+  rankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  rankLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6
+  },
+  rankLabel: {
     color: colors.text,
     fontWeight: '700',
     fontSize: 14,
+  },
+  rankPill: {
+    minWidth: 52,
+    borderRadius: 999,
+    backgroundColor: colors.primary + '1A',
+    borderWidth: 1,
+    borderColor: colors.primary + '55',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignItems: 'center'
+  },
+  rankPillText: {
+    color: colors.primaryDark,
+    fontWeight: '800',
+    fontSize: 13
   },
   championLine: {
     color: colors.text,

@@ -86,5 +86,13 @@ export const EffectService = {
     );
     return true;
   },
+
+  async clearAllEffects(userId: string): Promise<void> {
+    await setDoc(
+      effectsRef(userId),
+      { userId, activeEffects: [], updatedAt: Date.now() },
+      { merge: true }
+    );
+  },
 };
 

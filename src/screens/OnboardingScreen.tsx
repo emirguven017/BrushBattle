@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  title: { fontSize: 22, fontWeight: '800', color: colors.white },
+  title: { ...headerTitle },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',

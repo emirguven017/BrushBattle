@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors } from '../utils/colors';
+import { colors, headerTitle } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -230,9 +230,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   titleBarText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.white
+    ...headerTitle
   },
   titleBarSub: {
     fontSize: 13,

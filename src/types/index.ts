@@ -8,6 +8,8 @@ export interface User {
   groupId?: string;
   points: number;
   streak: number;
+  /** Pozitif streak kırıldıktan sonra ceza (-1,-2,-3) zinciri için */
+  streakPenaltyMode?: boolean;
   morningTime: string;
   eveningTime: string;
   onboardingComplete?: boolean;
