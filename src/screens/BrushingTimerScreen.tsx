@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Alert,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -43,6 +44,7 @@ export const BrushingTimerScreen: React.FC = () => {
   const lastTriggeredRef = useRef<number | null>(null);
   const countdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedSetRef = useRef(false);
+  const [rewardModal, setRewardModal] = useState<{ points: number; br: number } | null>(null);
 
   // Main timer
   useEffect(() => {
@@ -123,22 +125,23 @@ export const BrushingTimerScreen: React.FC = () => {
     lastTriggeredRef.current = null;
   };
 
+  const leaveAfterReward = () => {
+    setRewardModal(null);
+    if (nav.canGoBack()) {
+      nav.goBack();
+    } else {
+      (nav as { navigate: (name: string) => void }).navigate('HomeMain');
+    }
+  };
+
   const handleBrushed = async () => {
     if (!session || !user) return;
     try {
       const reward = await BrushingService.completeSession(session, user);
-      Alert.alert(
-        t('sessionRewardTitle'),
-        `+${reward.points} ${t('pointsLabel')} • +${reward.br} BR`
-      );
-      await refreshUser(); // Güncel puanları göstermek için
+      await refreshUser();
       await NotificationService.cancelSessionReminders(user.id, session.sessionType);
       await NotificationService.cancelMissedReminder(user.id, session.sessionType);
-      if (nav.canGoBack()) {
-        nav.goBack();
-      } else {
-        (nav as { navigate: (name: string) => void }).navigate('HomeMain');
-      }
+      setRewardModal({ points: reward.points, br: reward.br });
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('couldNotSave');
       const isPermission = typeof msg === 'string' && msg.toLowerCase().includes('permission');
@@ -159,6 +162,38 @@ export const BrushingTimerScreen: React.FC = () => {
 
   return (
     <View style={styles.wrapper}>
+      <Modal
+        visible={rewardModal !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={leaveAfterReward}
+      >
+        <View style={styles.rewardBackdrop}>
+          <View style={styles.rewardCard}>
+            <View style={styles.rewardIconWrap}>
+              <Ionicons name="sparkles" size={28} color={colors.primary} />
+            </View>
+            <Text style={styles.rewardTitle}>{t('sessionRewardTitle')}</Text>
+            <Text style={styles.rewardSubtitle}>{t('sessionRewardSubtitle')}</Text>
+            {rewardModal && (
+              <View style={styles.rewardStatsRow}>
+                <View style={styles.rewardStat}>
+                  <Text style={styles.rewardStatValue}>+{rewardModal.points}</Text>
+                  <Text style={styles.rewardStatLabel}>{t('pointsLabel')}</Text>
+                </View>
+                <View style={styles.rewardStatDivider} />
+                <View style={styles.rewardStat}>
+                  <Text style={styles.rewardStatValue}>+{rewardModal.br}</Text>
+                  <Text style={styles.rewardStatLabel}>BR</Text>
+                </View>
+              </View>
+            )}
+            <TouchableOpacity style={styles.rewardBtn} onPress={leaveAfterReward} activeOpacity={0.88}>
+              <Text style={styles.rewardBtnText}>{t('ok')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <View style={styles.container}>
         <CountdownOverlay visible={countdown.visible} number={countdown.number} />
 
@@ -311,5 +346,99 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: 'center',
     marginTop: 40,
+  },
+  rewardBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  rewardCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: colors.card,
+    borderRadius: 22,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+    alignItems: 'center',
+  },
+  rewardIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.successLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: colors.primary + '22',
+  },
+  rewardTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  rewardSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  rewardStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    width: '100%',
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  rewardStat: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rewardStatDivider: {
+    width: 1,
+    backgroundColor: colors.cardBorder,
+  },
+  rewardStatValue: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  rewardStatLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  rewardBtn: {
+    width: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  rewardBtnText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

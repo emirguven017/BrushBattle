@@ -70,36 +70,21 @@ export const HomeScreen: React.FC = () => {
     }, [user?.id, user?.groupId])
   );
 
-  const goToBrMarket = useCallback(() => {
-    const parentNav = nav.getParent();
-    if (parentNav) {
-      (parentNav as { navigate: (name: string) => void }).navigate('BRMarket');
-      return;
-    }
-    (nav as { navigate: (name: string) => void }).navigate('BRMarket');
-  }, [nav]);
-
   useLayoutEffect(() => {
     (nav as {
       setOptions: (opts: {
         headerRight: () => React.ReactNode;
+        headerRightContainerStyle?: object;
       }) => void;
     }).setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          style={styles.headerBrRow}
-          onPress={goToBrMarket}
-          activeOpacity={0.7}
-          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel={t('market')}
-        >
+        <View style={styles.headerBrRow}>
           <Ionicons name="diamond" size={14} color="#000000" />
           <Text style={styles.headerBrText}>{brScore}</Text>
-        </TouchableOpacity>
+        </View>
       )
     });
-  }, [nav, brScore, goToBrMarket, t]);
+  }, [nav, brScore]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -111,6 +96,12 @@ export const HomeScreen: React.FC = () => {
     sessions.find(s => s.sessionType === type);
   const morning = getSession('morning');
   const evening = getSession('evening');
+  const getSessionTime = (session: BrushSession | undefined, sessionType: SessionType): string =>
+    session?.scheduledTime ?? (
+      sessionType === 'morning'
+        ? (user?.morningTime ?? '08:00')
+        : (user?.eveningTime ?? '21:00')
+    );
 
   const getEffectiveStatus = (
     session: BrushSession | undefined,
@@ -126,6 +117,35 @@ export const HomeScreen: React.FC = () => {
     if (mins > 60) return 'missed';
     if (mins >= 0) return 'due'; // fırçalama saati geldi
     return 'pending';
+  };
+
+  const timeChipColors = (status: ReturnType<typeof getEffectiveStatus>) => {
+    switch (status) {
+      case 'completed':
+        return {
+          bg: colors.successLight,
+          border: colors.success + '33',
+          fg: colors.success
+        };
+      case 'missed':
+        return {
+          bg: colors.errorLight,
+          border: colors.error + '33',
+          fg: colors.error
+        };
+      case 'due':
+        return {
+          bg: colors.successLight,
+          border: colors.primary + '40',
+          fg: colors.primaryDark
+        };
+      default:
+        return {
+          bg: colors.accentLight,
+          border: colors.accent + '33',
+          fg: colors.accent
+        };
+    }
   };
 
   const completedCount = [morning, evening].filter(
@@ -177,6 +197,10 @@ export const HomeScreen: React.FC = () => {
     return t('goodEvening');
   })();
   const displayName = user?.username || t('defaultUserName');
+  const morningStatus = getEffectiveStatus(morning, 'morning');
+  const eveningStatus = getEffectiveStatus(evening, 'evening');
+  const morningChip = timeChipColors(morningStatus);
+  const eveningChip = timeChipColors(eveningStatus);
 
   return (
     <View style={styles.wrapper}>
@@ -208,58 +232,70 @@ export const HomeScreen: React.FC = () => {
 
       <Text style={styles.sectionTitle}>{t('todayTasks')}</Text>
 
-      <View style={[styles.taskCard, getEffectiveStatus(morning, 'morning') === 'completed' && styles.taskCardCompleted]}>
+      <View style={[styles.taskCard, morningStatus === 'completed' && styles.taskCardCompleted]}>
         <View style={[
           styles.taskStatusChip,
-          { backgroundColor: getEffectiveStatus(morning, 'morning') === 'completed' || getEffectiveStatus(morning, 'morning') === 'due' ? colors.successLight : getEffectiveStatus(morning, 'morning') === 'missed' ? colors.errorLight : colors.accentLight }
+          { backgroundColor: morningStatus === 'completed' || morningStatus === 'due' ? colors.successLight : morningStatus === 'missed' ? colors.errorLight : colors.accentLight }
         ]}>
           <View style={styles.taskStatusRow}>
             <Ionicons
-              name={getEffectiveStatus(morning, 'morning') === 'completed' || getEffectiveStatus(morning, 'morning') === 'due' ? 'checkmark-circle' : getEffectiveStatus(morning, 'morning') === 'missed' ? 'close-circle' : 'time'}
+              name={morningStatus === 'completed' || morningStatus === 'due' ? 'checkmark-circle' : morningStatus === 'missed' ? 'close-circle' : 'time'}
               size={16}
-              color={getEffectiveStatus(morning, 'morning') === 'completed' ? colors.success : getEffectiveStatus(morning, 'morning') === 'missed' ? colors.error : getEffectiveStatus(morning, 'morning') === 'due' ? colors.success : colors.accent}
+              color={morningStatus === 'completed' ? colors.success : morningStatus === 'missed' ? colors.error : morningStatus === 'due' ? colors.success : colors.accent}
             />
             <Text style={styles.taskStatusText}>
-              {getEffectiveStatus(morning, 'morning') === 'completed' ? t('statusCompleted') : getEffectiveStatus(morning, 'morning') === 'missed' ? t('statusMissed') : getEffectiveStatus(morning, 'morning') === 'due' ? t('statusDue') : t('statusPending')}
+              {morningStatus === 'completed' ? t('statusCompleted') : morningStatus === 'missed' ? t('statusMissed') : morningStatus === 'due' ? t('statusDue') : t('statusPending')}
             </Text>
           </View>
         </View>
-        <Text style={styles.taskTitle}>{t('morningTask')}</Text>
+        <View style={styles.taskHeaderRow}>
+          <Text style={styles.taskTitle}>{t('morningTask')}</Text>
+          <View style={[styles.taskTimeChip, { backgroundColor: morningChip.bg, borderColor: morningChip.border }]}>
+            <Ionicons name="time-outline" size={12} color={morningChip.fg} />
+            <Text style={[styles.taskTimeText, { color: morningChip.fg }]}>{getSessionTime(morning, 'morning')}</Text>
+          </View>
+        </View>
         <TouchableOpacity
-          style={[styles.taskBtn, getEffectiveStatus(morning, 'morning') === 'completed' && styles.taskBtnSecondary]}
+          style={[styles.taskBtn, morningStatus === 'completed' && styles.taskBtnSecondary]}
           onPress={() => handleStartBrushing('morning')}
           activeOpacity={0.85}
         >
-          <Text style={[styles.taskBtnText, getEffectiveStatus(morning, 'morning') === 'completed' && styles.taskBtnTextSecondary]}>
-            {getEffectiveStatus(morning, 'morning') === 'completed' ? t('repeatBrushing') : getEffectiveStatus(morning, 'morning') === 'missed' ? t('brushAnyway') : t('startBrushing')}
+          <Text style={[styles.taskBtnText, morningStatus === 'completed' && styles.taskBtnTextSecondary]}>
+            {morningStatus === 'completed' ? t('repeatBrushing') : morningStatus === 'missed' ? t('brushAnyway') : t('startBrushing')}
           </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.taskCard, getEffectiveStatus(evening, 'evening') === 'completed' && styles.taskCardCompleted]}>
+      <View style={[styles.taskCard, eveningStatus === 'completed' && styles.taskCardCompleted]}>
         <View style={[
           styles.taskStatusChip,
-          { backgroundColor: getEffectiveStatus(evening, 'evening') === 'completed' || getEffectiveStatus(evening, 'evening') === 'due' ? colors.successLight : getEffectiveStatus(evening, 'evening') === 'missed' ? colors.errorLight : colors.accentLight }
+          { backgroundColor: eveningStatus === 'completed' || eveningStatus === 'due' ? colors.successLight : eveningStatus === 'missed' ? colors.errorLight : colors.accentLight }
         ]}>
           <View style={styles.taskStatusRow}>
             <Ionicons
-              name={getEffectiveStatus(evening, 'evening') === 'completed' || getEffectiveStatus(evening, 'evening') === 'due' ? 'checkmark-circle' : getEffectiveStatus(evening, 'evening') === 'missed' ? 'close-circle' : 'time'}
+              name={eveningStatus === 'completed' || eveningStatus === 'due' ? 'checkmark-circle' : eveningStatus === 'missed' ? 'close-circle' : 'time'}
               size={16}
-              color={getEffectiveStatus(evening, 'evening') === 'completed' ? colors.success : getEffectiveStatus(evening, 'evening') === 'missed' ? colors.error : getEffectiveStatus(evening, 'evening') === 'due' ? colors.success : colors.accent}
+              color={eveningStatus === 'completed' ? colors.success : eveningStatus === 'missed' ? colors.error : eveningStatus === 'due' ? colors.success : colors.accent}
             />
             <Text style={styles.taskStatusText}>
-              {getEffectiveStatus(evening, 'evening') === 'completed' ? t('statusCompleted') : getEffectiveStatus(evening, 'evening') === 'missed' ? t('statusMissed') : getEffectiveStatus(evening, 'evening') === 'due' ? t('statusDue') : t('statusPending')}
+              {eveningStatus === 'completed' ? t('statusCompleted') : eveningStatus === 'missed' ? t('statusMissed') : eveningStatus === 'due' ? t('statusDue') : t('statusPending')}
             </Text>
           </View>
         </View>
-        <Text style={styles.taskTitle}>{t('eveningTask')}</Text>
+        <View style={styles.taskHeaderRow}>
+          <Text style={styles.taskTitle}>{t('eveningTask')}</Text>
+          <View style={[styles.taskTimeChip, { backgroundColor: eveningChip.bg, borderColor: eveningChip.border }]}>
+            <Ionicons name="time-outline" size={12} color={eveningChip.fg} />
+            <Text style={[styles.taskTimeText, { color: eveningChip.fg }]}>{getSessionTime(evening, 'evening')}</Text>
+          </View>
+        </View>
         <TouchableOpacity
-          style={[styles.taskBtn, getEffectiveStatus(evening, 'evening') === 'completed' && styles.taskBtnSecondary]}
+          style={[styles.taskBtn, eveningStatus === 'completed' && styles.taskBtnSecondary]}
           onPress={() => handleStartBrushing('evening')}
           activeOpacity={0.85}
         >
-          <Text style={[styles.taskBtnText, getEffectiveStatus(evening, 'evening') === 'completed' && styles.taskBtnTextSecondary]}>
-            {getEffectiveStatus(evening, 'evening') === 'completed' ? t('repeatBrushing') : getEffectiveStatus(evening, 'evening') === 'missed' ? t('brushAnyway') : t('startBrushing')}
+          <Text style={[styles.taskBtnText, eveningStatus === 'completed' && styles.taskBtnTextSecondary]}>
+            {eveningStatus === 'completed' ? t('repeatBrushing') : eveningStatus === 'missed' ? t('brushAnyway') : t('startBrushing')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -357,7 +393,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    paddingRight: 5
+    paddingRight: 10
   },
   headerBrText: {
     color: colors.text,
@@ -478,6 +514,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: colors.text
+  },
+  taskHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 4
+  },
+  taskTimeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4
+  },
+  taskTimeText: {
+    fontSize: 12,
+    fontWeight: '700'
   },
   taskBtn: {
     backgroundColor: colors.primary,

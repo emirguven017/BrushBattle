@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { colors, headerTitle } from '../utils/colors';
@@ -192,41 +191,6 @@ export const BRMarketScreen: React.FC = () => {
     );
   };
 
-  const onClaimFreeBr = async () => {
-    if (!user) return;
-    try {
-      await InventoryService.addBrScore(user.id, 100);
-      Alert.alert(t('info'), t('freeBrClaimed'));
-      await load();
-    } catch (e) {
-      Alert.alert(t('error'), normalizeMarketError(e, t));
-    }
-  };
-
-  const onClearActiveEffects = async () => {
-    if (!user) return;
-    Alert.alert(
-      t('clearActiveEffectsTitle'),
-      t('clearActiveEffectsConfirm'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('clearActiveEffectsCta'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await EffectService.clearAllEffects(user.id);
-              Alert.alert(t('info'), t('activeEffectsCleared'));
-              await load();
-            } catch (e) {
-              Alert.alert(t('error'), normalizeMarketError(e, t));
-            }
-          }
-        }
-      ]
-    );
-  };
-
   if (!user) return null;
 
   return (
@@ -284,24 +248,6 @@ export const BRMarketScreen: React.FC = () => {
           />
         ))}
 
-        <View style={styles.freeBrCard}>
-          <Text style={styles.freeBrTitle}>{t('freeBrTitle')}</Text>
-          <Text style={styles.freeBrDesc}>{t('freeBrDesc')}</Text>
-          <TouchableOpacity style={styles.freeBrBtn} onPress={onClaimFreeBr} activeOpacity={0.85}>
-            <Ionicons name="gift" size={18} color={colors.white} />
-            <Text style={styles.freeBrBtnText}>{t('claim100Br')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.clearEffectsCard}>
-          <Text style={styles.clearEffectsTitle}>{t('clearActiveEffectsTitle')}</Text>
-          <Text style={styles.clearEffectsDesc}>{t('clearActiveEffectsDesc')}</Text>
-          <TouchableOpacity style={styles.clearEffectsBtn} onPress={onClearActiveEffects} activeOpacity={0.85}>
-            <Ionicons name="trash" size={18} color={colors.white} />
-            <Text style={styles.clearEffectsBtnText}>{t('clearActiveEffectsCta')}</Text>
-          </TouchableOpacity>
-        </View>
-
       </ScrollView>
     </View>
   );
@@ -352,71 +298,5 @@ const styles = StyleSheet.create({
   targetChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   targetChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   targetChipTextActive: { color: colors.white },
-  freeBrCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    padding: 14,
-    marginTop: 10
-  },
-  freeBrTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text
-  },
-  freeBrDesc: {
-    marginTop: 4,
-    marginBottom: 12,
-    fontSize: 13,
-    color: colors.textSecondary
-  },
-  freeBrBtn: {
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8
-  },
-  freeBrBtnText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800'
-  },
-  clearEffectsCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    padding: 14,
-    marginTop: 10
-  },
-  clearEffectsTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text
-  },
-  clearEffectsDesc: {
-    marginTop: 4,
-    marginBottom: 12,
-    fontSize: 13,
-    color: colors.textSecondary
-  },
-  clearEffectsBtn: {
-    borderRadius: 10,
-    backgroundColor: colors.error,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8
-  },
-  clearEffectsBtnText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800'
-  },
 });
 
