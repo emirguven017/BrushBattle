@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,14 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  Alert
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CountryFlag from 'react-native-country-flag';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { TimePicker24 } from '../components/TimePicker24';
-import { colors, headerTitle } from '../utils/colors';
+import { colors, headerTitle, ui } from '../utils/colors';
+import { uiStyles } from '../utils/uiStyles';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useIntro } from '../context/IntroContext';
@@ -24,30 +24,67 @@ import { BrushingService } from '../services/BrushingService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GroupService } from '../services/GroupService';
 import { WeeklyRewardService } from '../services/weeklyRewardService';
+import { AppFeedbackModal } from '../components/AppFeedbackModal';
+import { AppConfirmModal } from '../components/AppConfirmModal';
 
 export const SettingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const nav = useNavigation();
   const { user, refreshUser, logOut } = useAuth();
   const { t, language, setLanguage } = useLanguage();
   const { requestShowIntroAgain } = useIntro();
   const [username, setUsername] = useState(user?.username ?? '');
   const [morningTime, setMorningTime] = useState(user?.morningTime ?? '08:00');
+  const [middayTime, setMiddayTime] = useState(user?.middayTime ?? '14:00');
   const [eveningTime, setEveningTime] = useState(user?.eveningTime ?? '21:00');
   const [saving, setSaving] = useState(false);
   const [showMorningPicker, setShowMorningPicker] = useState(false);
+  const [showMiddayPicker, setShowMiddayPicker] = useState(false);
   const [showEveningPicker, setShowEveningPicker] = useState(false);
+  const [dailySessionCount, setDailySessionCount] = useState<1 | 2 | 3>(user?.dailySessionCount ?? 2);
+  const [toothbrushReminderEnabled, setToothbrushReminderEnabled] = useState(true);
+  const [toothbrushIntervalDays, setToothbrushIntervalDays] = useState<30 | 45 | 60>(45);
+  const [initialToothbrushReminderEnabled, setInitialToothbrushReminderEnabled] = useState(true);
+  const [initialToothbrushIntervalDays, setInitialToothbrushIntervalDays] = useState<30 | 45 | 60>(45);
+  const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
 
   const initialValues = useMemo(() => ({
     username: user?.username ?? '',
     morningTime: user?.morningTime ?? '08:00',
-    eveningTime: user?.eveningTime ?? '21:00'
-  }), [user?.username, user?.morningTime, user?.eveningTime]);
+    middayTime: user?.middayTime ?? '14:00',
+    eveningTime: user?.eveningTime ?? '21:00',
+    dailySessionCount: user?.dailySessionCount ?? 2,
+  }), [user?.username, user?.morningTime, user?.middayTime, user?.eveningTime, user?.dailySessionCount]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setUsername(user.username ?? '');
+    setMorningTime(user.morningTime ?? '08:00');
+    setMiddayTime(user.middayTime ?? '14:00');
+    setEveningTime(user.eveningTime ?? '21:00');
+    setDailySessionCount(user.dailySessionCount ?? 2);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    NotificationService.getToothbrushReminderSettings(user.id)
+      .then((s) => {
+        setToothbrushReminderEnabled(s.enabled);
+        setToothbrushIntervalDays(s.intervalDays);
+        setInitialToothbrushReminderEnabled(s.enabled);
+        setInitialToothbrushIntervalDays(s.intervalDays);
+      })
+      .catch(() => {});
+  }, [user?.id]);
 
   const hasUnsavedChanges =
     username.trim() !== initialValues.username ||
     morningTime !== initialValues.morningTime ||
-    eveningTime !== initialValues.eveningTime;
+    middayTime !== initialValues.middayTime ||
+    eveningTime !== initialValues.eveningTime ||
+    dailySessionCount !== initialValues.dailySessionCount ||
+    toothbrushReminderEnabled !== initialToothbrushReminderEnabled ||
+    toothbrushIntervalDays !== initialToothbrushIntervalDays;
 
   const handleSave = useCallback(async (): Promise<boolean> => {
     if (!user) return false;
@@ -58,62 +95,91 @@ export const SettingsScreen: React.FC = () => {
       await updateDoc(doc(db, 'users', user.id), {
         username: username.trim(),
         morningTime: morningTime || '08:00',
-        eveningTime: eveningTime || '21:00'
+        middayTime: middayTime || '14:00',
+        eveningTime: eveningTime || '21:00',
+        dailySessionCount,
       });
       await WeeklyRewardService.syncUsernameAcrossWeeklyEntries(user.id, username.trim());
       await refreshUser();
-      const updatedUser = { ...user, morningTime: morningTime || '08:00', eveningTime: eveningTime || '21:00' };
+      const updatedUser = {
+        ...user,
+        morningTime: morningTime || '08:00',
+        middayTime: middayTime || '14:00',
+        eveningTime: eveningTime || '21:00',
+        dailySessionCount,
+      };
       await AsyncStorage.removeItem(`daily_reminder_signature_${user.id}`);
       await NotificationService.syncDailyBaseReminders(updatedUser);
+      await NotificationService.saveToothbrushReminderSettings(
+        { enabled: toothbrushReminderEnabled, intervalDays: toothbrushIntervalDays },
+        user.id
+      );
+      if (!toothbrushReminderEnabled) {
+        await NotificationService.cancelToothbrushReplacementReminder(user.id);
+      } else {
+        await NotificationService.scheduleToothbrushReplacementReminder({
+          userId: user.id,
+          replaceDaysAgo: null,
+          dontKnow: true,
+          intervalDays: toothbrushIntervalDays,
+          hour: 20,
+          minute: 0,
+        });
+      }
+      setInitialToothbrushReminderEnabled(toothbrushReminderEnabled);
+      setInitialToothbrushIntervalDays(toothbrushIntervalDays);
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('couldNotSave');
-      Alert.alert(t('error'), msg || t('couldNotSave'));
+      setFeedbackModal({ title: t('error'), message: msg || t('couldNotSave') });
       return false;
     } finally {
       setSaving(false);
     }
-  }, [user, username, morningTime, eveningTime, refreshUser, t]);
+  }, [
+    user,
+    username,
+    morningTime,
+    middayTime,
+    eveningTime,
+    dailySessionCount,
+    refreshUser,
+    toothbrushReminderEnabled,
+    toothbrushIntervalDays,
+    t,
+  ]);
 
   const handleShowIntroAgain = async () => {
     await requestShowIntroAgain();
   };
 
   const handleLeaveGroup = () => {
-    Alert.alert(
-      t('leaveGroup'),
-      t('leaveGroupConfirm'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('leave'),
-          style: 'destructive',
-          onPress: async () => {
-            if (!user?.groupId) return;
-            try {
-              await GroupService.leaveGroup(user.id, user.groupId);
-              await refreshUser();
-              Alert.alert(t('info'), t('leftGroup'));
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : t('groupActionFailed');
-              Alert.alert(t('error'), msg || t('groupActionFailed'));
-            }
-          }
-        }
-      ]
-    );
+    setLeaveConfirmOpen(true);
+  };
+
+  const confirmLeaveGroup = async () => {
+    setLeaveConfirmOpen(false);
+    if (!user?.groupId) return;
+    try {
+      await GroupService.leaveGroup(user.id, user.groupId);
+      await refreshUser();
+      setFeedbackModal({ title: t('info'), message: t('leftGroup') });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t('groupActionFailed');
+      setFeedbackModal({ title: t('error'), message: msg || t('groupActionFailed') });
+    }
   };
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
+    <View style={[styles.wrapper, uiStyles.screen]}>
       <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
         <View style={styles.titleBar}>
         <Text style={styles.title}>{t('settings')}</Text>
         </View>
       </View>
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, uiStyles.content]}>
+      <Text style={styles.sectionHeader}>{t('language')}</Text>
       <View style={styles.card}>
-        <Text style={styles.label}>{t('language')}</Text>
         <View style={styles.languageRow}>
           <TouchableOpacity
             style={[styles.langBtn, language === 'tr' && styles.langBtnActive]}
@@ -140,6 +206,70 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
+      <Text style={styles.sectionHeader}>{t('brushingMenu')}</Text>
+      <View style={styles.card}>
+        <Text style={styles.label}>{t('wwPerDayTitle')}</Text>
+        <View style={styles.intervalRow}>
+          {[1, 2, 3].map((count) => (
+            <TouchableOpacity
+              key={count}
+              style={[
+                styles.intervalChip,
+                dailySessionCount === count && styles.intervalChipActive,
+              ]}
+              onPress={() => setDailySessionCount(count as 1 | 2 | 3)}
+            >
+              <Text
+                style={[
+                  styles.intervalChipText,
+                  dailySessionCount === count && styles.intervalChipTextActive,
+                ]}
+              >
+                {count}x
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <Text style={styles.sectionHeader}>{t('toothbrushReminderTitle')}</Text>
+      <View style={styles.card}>
+        <View style={styles.reminderRow}>
+          <Text style={styles.reminderText}>{t('toothbrushReminderEnabled')}</Text>
+          <Switch
+            value={toothbrushReminderEnabled}
+            onValueChange={setToothbrushReminderEnabled}
+            trackColor={{ false: colors.cardBorder, true: colors.successLight }}
+            thumbColor={toothbrushReminderEnabled ? colors.primary : '#f4f3f4'}
+          />
+        </View>
+        <Text style={styles.reminderHint}>{t('toothbrushReminderHint')}</Text>
+        <View style={styles.intervalRow}>
+          {[30, 45, 60].map((d) => (
+            <TouchableOpacity
+              key={d}
+              style={[
+                styles.intervalChip,
+                toothbrushIntervalDays === d && styles.intervalChipActive,
+                !toothbrushReminderEnabled && styles.intervalChipDisabled,
+              ]}
+              onPress={() => setToothbrushIntervalDays(d as 30 | 45 | 60)}
+              disabled={!toothbrushReminderEnabled}
+            >
+              <Text
+                style={[
+                  styles.intervalChipText,
+                  toothbrushIntervalDays === d && styles.intervalChipTextActive,
+                ]}
+              >
+                {d} {t('daysShort')}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <Text style={styles.sectionHeader}>{t('settings')}</Text>
       <View style={styles.card}>
         <Text style={styles.label}>{t('username')}</Text>
         <TextInput
@@ -177,31 +307,60 @@ export const SettingsScreen: React.FC = () => {
         )}
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>{t('eveningTime')}</Text>
-        <TouchableOpacity
-          style={styles.timeButton}
-          onPress={() => setShowEveningPicker(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.timeButtonContent}>
-            <Ionicons name="moon-outline" size={20} color={colors.text} />
-            <Text style={styles.timeButtonText}> {eveningTime}</Text>
-          </View>
-          <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-        </TouchableOpacity>
-        {showEveningPicker && (
-          <View style={styles.pickerContainer}>
-            <TimePicker24 value={eveningTime} onChange={setEveningTime} />
-            <TouchableOpacity
-              style={styles.pickerDoneBtn}
-              onPress={() => setShowEveningPicker(false)}
-            >
-            <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+      {dailySessionCount === 3 && (
+        <View style={styles.card}>
+          <Text style={styles.label}>{t('middayTime')}</Text>
+          <TouchableOpacity
+            style={styles.timeButton}
+            onPress={() => setShowMiddayPicker(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.timeButtonContent}>
+              <Ionicons name="sunny-outline" size={20} color={colors.text} />
+              <Text style={styles.timeButtonText}> {middayTime}</Text>
+            </View>
+            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
           </TouchableOpacity>
-          </View>
-        )}
-      </View>
+          {showMiddayPicker && (
+            <View style={styles.pickerContainer}>
+              <TimePicker24 value={middayTime} onChange={setMiddayTime} />
+              <TouchableOpacity
+                style={styles.pickerDoneBtn}
+                onPress={() => setShowMiddayPicker(false)}
+              >
+                <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
+      {dailySessionCount >= 2 && (
+        <View style={styles.card}>
+          <Text style={styles.label}>{t('eveningTime')}</Text>
+          <TouchableOpacity
+            style={styles.timeButton}
+            onPress={() => setShowEveningPicker(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.timeButtonContent}>
+              <Ionicons name="moon-outline" size={20} color={colors.text} />
+              <Text style={styles.timeButtonText}> {eveningTime}</Text>
+            </View>
+            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+          </TouchableOpacity>
+          {showEveningPicker && (
+            <View style={styles.pickerContainer}>
+              <TimePicker24 value={eveningTime} onChange={setEveningTime} />
+              <TouchableOpacity
+                style={styles.pickerDoneBtn}
+                onPress={() => setShowEveningPicker(false)}
+              >
+              <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+            </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      )}
 
       <TouchableOpacity
         style={[styles.saveBtn, (!hasUnsavedChanges || saving) && styles.saveBtnDisabled]}
@@ -229,6 +388,22 @@ export const SettingsScreen: React.FC = () => {
         <Text style={styles.logoutBtnText}>{t('logout')}</Text>
       </TouchableOpacity>
     </ScrollView>
+    <AppFeedbackModal
+      visible={feedbackModal !== null}
+      title={feedbackModal?.title ?? ''}
+      message={feedbackModal?.message ?? ''}
+      buttonText={t('ok')}
+      onClose={() => setFeedbackModal(null)}
+    />
+    <AppConfirmModal
+      visible={leaveConfirmOpen}
+      title={t('leaveGroup')}
+      message={t('leaveGroupConfirm')}
+      cancelText={t('cancel')}
+      confirmText={t('leave')}
+      onCancel={() => setLeaveConfirmOpen(false)}
+      onConfirm={() => { confirmLeaveGroup().catch(() => {}); }}
+    />
     </View>
   );
 };
@@ -237,7 +412,7 @@ const styles = StyleSheet.create({
   wrapper: { flex: 1 },
   greenHeader: { backgroundColor: colors.primary },
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 20, paddingBottom: 40 },
+  content: {},
   titleBar: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
@@ -251,16 +426,22 @@ const styles = StyleSheet.create({
   langBtnContent: { flexDirection: 'row', alignItems: 'center' },
   flag: { borderRadius: 2, overflow: 'hidden' },
   timeButtonContent: { flexDirection: 'row', alignItems: 'center' },
+  sectionHeader: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: '700',
+    marginTop: 10,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4
+    borderRadius: ui.radiusLg,
+    padding: ui.cardPadding,
+    marginBottom: 10,
+    borderWidth: ui.borderWidth,
+    borderColor: colors.cardBorder,
   },
   languageRow: {
     flexDirection: 'row',
@@ -269,10 +450,10 @@ const styles = StyleSheet.create({
   },
   langBtn: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: ui.radiusMd,
+    borderWidth: ui.borderWidth,
     borderColor: colors.cardBorder,
     alignItems: 'center',
     backgroundColor: colors.background
@@ -290,28 +471,23 @@ const styles = StyleSheet.create({
     color: colors.primary
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.muted,
     marginBottom: 8
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: colors.text
+    ...uiStyles.input
   },
   timeButton: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 16,
+    borderWidth: ui.borderWidth,
+    borderColor: colors.cardBorder,
+    borderRadius: ui.radiusMd,
+    padding: 14,
     backgroundColor: colors.background
   },
   timeButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text
   },
@@ -334,41 +510,85 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600'
   },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: 18,
+  reminderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16
+    justifyContent: 'space-between',
+  },
+  reminderText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  reminderHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: colors.muted,
+    lineHeight: 17,
+  },
+  intervalRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  intervalChip: {
+    flex: 1,
+    borderWidth: ui.borderWidth,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.background,
+    borderRadius: ui.radiusSm,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  intervalChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.successLight,
+  },
+  intervalChipDisabled: {
+    opacity: 0.5,
+  },
+  intervalChipText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.muted,
+  },
+  intervalChipTextActive: {
+    color: colors.primary,
+  },
+  saveBtn: {
+    ...uiStyles.buttonPrimary,
+    borderRadius: ui.radiusMd,
+    alignItems: 'center',
+    marginTop: 12
   },
   saveBtnDisabled: {
     opacity: 0.5
   },
   saveBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
   leaveBtn: {
-    marginTop: 12,
-    padding: 16,
+    marginTop: 10,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.warning,
-    borderRadius: 16,
+    borderRadius: ui.radiusMd,
     backgroundColor: colors.card
   },
   leaveBtnText: { color: colors.warning, fontSize: 16, fontWeight: '600' },
   showIntroBtn: {
-    marginTop: 12,
-    padding: 16,
+    marginTop: 10,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.primary,
-    borderRadius: 16
+    borderRadius: ui.radiusMd
   },
   showIntroBtnText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   logoutBtn: {
-    marginTop: 12,
+    marginTop: 10,
     backgroundColor: colors.error,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: ui.radiusMd,
+    padding: 14,
     alignItems: 'center'
   },
   logoutBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' }

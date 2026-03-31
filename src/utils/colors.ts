@@ -21,6 +21,30 @@ export const colors = {
   gradientEnd: '#27AE60'
 };
 
+export const ui = {
+  spacingXs: 6,
+  spacingSm: 10,
+  spacingMd: 14,
+  spacingLg: 18,
+  spacingXl: 24,
+  radiusSm: 10,
+  radiusMd: 14,
+  radiusLg: 18,
+  radiusXl: 22,
+  screenPadding: 16,
+  cardPadding: 14,
+  buttonHeight: 52,
+  borderWidth: 1,
+  hairlineWidth: 0.5,
+  iconSm: 14,
+  iconMd: 18,
+  iconLg: 24,
+  titleLg: 22,
+  titleMd: 18,
+  textMd: 15,
+  textSm: 13,
+} as const;
+
 /** Native stack başlığı (Home/Timer) ile aynı — yeşil header metinleri */
 export const headerTitle = {
   fontSize: 18,

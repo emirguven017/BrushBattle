@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   Modal,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { BrushingService } from '../services/BrushingService';
 import { NotificationService } from '../services/NotificationService';
 import { TimerCircle } from '../components';
 import { ToothGuide, CountdownOverlay, InstructionText } from '../components/brushing';
+import { AppFeedbackModal } from '../components/AppFeedbackModal';
 import {
   TOTAL_DURATION_SEC,
   getZoneFromElapsed,
@@ -44,25 +44,43 @@ export const BrushingTimerScreen: React.FC = () => {
   const lastTriggeredRef = useRef<number | null>(null);
   const countdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedSetRef = useRef(false);
+  const secondsRef = useRef(seconds);
+  secondsRef.current = seconds;
   const [rewardModal, setRewardModal] = useState<{ points: number; br: number } | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
 
-  // Main timer
   useEffect(() => {
     if (!session) return;
-    if (seconds <= 0) {
-      if (!finishedSetRef.current) {
-        finishedSetRef.current = true;
-        setFinished(true);
-        // Fırçalama bittiği anda seans hatırlatmalarını iptal et (bildirim gelmesin)
-        if (user) {
-          NotificationService.cancelSessionReminders(user.id, session.sessionType).catch(() => {});
+    finishedSetRef.current = false;
+    setSeconds(TOTAL_DURATION_SEC);
+    setFinished(false);
+    setDisplayZone(0);
+    lastTriggeredRef.current = null;
+    setCountdown({ visible: false, number: 3 });
+    setRewardModal(null);
+  }, [session?.id]);
+
+  // Main timer: tek interval (seconds bağımlılığı yok — gereksiz yeniden kurulum yok)
+  useEffect(() => {
+    if (!session) return;
+    const timer = setInterval(() => {
+      setSeconds((s) => {
+        if (s <= 0) return 0;
+        if (s === 1) {
+          if (!finishedSetRef.current) {
+            finishedSetRef.current = true;
+            setFinished(true);
+            if (user) {
+              NotificationService.cancelSessionReminders(user.id, session.sessionType).catch(() => {});
+            }
+          }
+          return 0;
         }
-      }
-      return;
-    }
-    const timer = setInterval(() => setSeconds((s) => s - 1), 1000);
+        return s - 1;
+      });
+    }, 1000);
     return () => clearInterval(timer);
-  }, [session, seconds, user]);
+  }, [session, user]);
 
   // Trigger countdown when crossing 90, 60, 30
   useEffect(() => {
@@ -95,7 +113,9 @@ export const BrushingTimerScreen: React.FC = () => {
         setCountdown((c) => ({ ...c, number: 1 }));
         countdownTimeoutRef.current = setTimeout(() => {
           setCountdown({ visible: false, number: 3 });
-          setDisplayZone((z) => Math.min(3, z + 1) as ZoneIndex);
+          const s = secondsRef.current;
+          const elapsed = TOTAL_DURATION_SEC - s;
+          setDisplayZone(getZoneFromElapsed(elapsed));
           lastTriggeredRef.current = null;
         }, COUNTDOWN_DURATION_MS);
       }
@@ -123,6 +143,7 @@ export const BrushingTimerScreen: React.FC = () => {
     setFinished(false);
     setDisplayZone(0);
     lastTriggeredRef.current = null;
+    setRewardModal(null);
   };
 
   const leaveAfterReward = () => {
@@ -145,10 +166,10 @@ export const BrushingTimerScreen: React.FC = () => {
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('couldNotSave');
       const isPermission = typeof msg === 'string' && msg.toLowerCase().includes('permission');
-      Alert.alert(
-        t('error'),
-        isPermission ? t('firestorePermissionError') : msg
-      );
+      setFeedbackModal({
+        title: t('error'),
+        message: isPermission ? t('firestorePermissionError') : msg
+      });
     }
   };
 
@@ -194,6 +215,13 @@ export const BrushingTimerScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
+      <AppFeedbackModal
+        visible={feedbackModal !== null}
+        title={feedbackModal?.title ?? ''}
+        message={feedbackModal?.message ?? ''}
+        buttonText={t('ok')}
+        onClose={() => setFeedbackModal(null)}
+      />
       <View style={styles.container}>
         <CountdownOverlay visible={countdown.visible} number={countdown.number} />
 

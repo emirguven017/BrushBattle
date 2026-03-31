@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
-import { colors, headerTitle } from '../utils/colors';
+import { colors, headerTitle, ui } from '../utils/colors';
+import { uiStyles } from '../utils/uiStyles';
 import type { MarketCategory, MarketItemId, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
@@ -22,6 +22,8 @@ import { EffectService } from '../services/effectService';
 import { MarketService } from '../services/marketService';
 import { GroupService } from '../services/GroupService';
 import { NotificationService } from '../services/NotificationService';
+import { AppFeedbackModal } from '../components/AppFeedbackModal';
+import { AppConfirmModal } from '../components/AppConfirmModal';
 
 const CATEGORIES: MarketCategory[] = ['attack', 'defense', 'boost'];
 const ITEM_TITLE_KEYS: Record<MarketItemId, string> = {
@@ -75,6 +77,12 @@ export const BRMarketScreen: React.FC = () => {
   const [effects, setEffects] = useState<import('../types').ActiveEffect[]>([]);
   const [members, setMembers] = useState<User[]>([]);
   const [targetUserId, setTargetUserId] = useState<string | undefined>(selectedFromRoute);
+  const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
+  const [confirmUseState, setConfirmUseState] = useState<{ itemId: MarketItemId; message: string } | null>(null);
+
+  const showFeedback = (title: string, message: string) => {
+    setFeedbackModal({ title, message });
+  };
 
   const marketItems = useMemo(() => {
     const descKey: Record<MarketItemId, string> = {
@@ -141,10 +149,10 @@ export const BRMarketScreen: React.FC = () => {
     try {
       await MarketService.buyItem(user.id, itemId);
       await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifPurchased'));
-      Alert.alert(t('info'), `${t(ITEM_TITLE_KEYS[itemId])} ${t('itemPurchasedSuffix')}`);
+      showFeedback(t('info'), `${t(ITEM_TITLE_KEYS[itemId])} ${t('itemPurchasedSuffix')}`);
       await load();
     } catch (e) {
-      Alert.alert(t('error'), normalizeMarketError(e, t));
+      showFeedback(t('error'), normalizeMarketError(e, t));
     }
   };
 
@@ -153,11 +161,11 @@ export const BRMarketScreen: React.FC = () => {
     const isAttack = itemId === 'freeze' || itemId === 'score_drop';
     if (isAttack) {
       if (!user.groupId) {
-        Alert.alert(t('error'), t('joinGroupFirst'));
+        showFeedback(t('error'), t('joinGroupFirst'));
         return;
       }
       if (!targetUserId || targetUserId === user.id) {
-        Alert.alert(t('error'), t('cannotAttackSelf'));
+        showFeedback(t('error'), t('cannotAttackSelf'));
         return;
       }
     }
@@ -167,28 +175,7 @@ export const BRMarketScreen: React.FC = () => {
       ? t('confirmUseFeatureTargetMessage').replace('{target}', targetName).replace('{feature}', featureName)
       : t('confirmUseFeatureSelfMessage').replace('{feature}', featureName);
 
-    Alert.alert(
-      t('confirmUseFeatureTitle'),
-      message,
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('use'),
-          onPress: async () => {
-            try {
-              await MarketService.useItem(user.id, itemId, isAttack ? targetUserId : undefined);
-              await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifUsed'));
-              Alert.alert(t('info'), t('itemUsed'));
-              await load();
-            } catch (e) {
-              const attackTargetName = members.find((m) => m.id === targetUserId)?.username;
-              Alert.alert(t('error'), normalizeMarketError(e, t, attackTargetName));
-              await load().catch(() => {});
-            }
-          }
-        }
-      ]
-    );
+    setConfirmUseState({ itemId, message });
   };
 
   if (!user) return null;
@@ -200,7 +187,7 @@ export const BRMarketScreen: React.FC = () => {
         <Text style={styles.title}>{t('brMarketTitle')}</Text>
         </View>
       </View>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={[styles.content, uiStyles.content]}>
         <BRBalanceCard brScore={brScore} />
         <InventoryList items={items} />
         <ActiveEffectsList effects={effects} />
@@ -249,6 +236,39 @@ export const BRMarketScreen: React.FC = () => {
         ))}
 
       </ScrollView>
+
+      <AppFeedbackModal
+        visible={feedbackModal !== null}
+        title={feedbackModal?.title ?? ''}
+        message={feedbackModal?.message ?? ''}
+        buttonText={t('ok') || 'OK'}
+        onClose={() => setFeedbackModal(null)}
+      />
+      <AppConfirmModal
+        visible={confirmUseState !== null}
+        title={t('confirmUseFeatureTitle')}
+        message={confirmUseState?.message ?? ''}
+        cancelText={t('cancel')}
+        confirmText={t('use')}
+        onCancel={() => setConfirmUseState(null)}
+        onConfirm={() => {
+          if (!confirmUseState || !user) return;
+          const itemId = confirmUseState.itemId;
+          setConfirmUseState(null);
+          const isAttack = itemId === 'freeze' || itemId === 'score_drop';
+          MarketService.useItem(user.id, itemId, isAttack ? targetUserId : undefined)
+            .then(async () => {
+              await NotificationService.notifyMarketEvent(t('brMarketTitle'), t('marketNotifUsed'));
+              showFeedback(t('info'), t('itemUsed'));
+              await load();
+            })
+            .catch(async (e) => {
+              const attackTargetName = members.find((m) => m.id === targetUserId)?.username;
+              showFeedback(t('error'), normalizeMarketError(e, t, attackTargetName));
+              await load().catch(() => {});
+            });
+        }}
+      />
     </View>
   );
 };
@@ -265,32 +285,32 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center' },
   title: { ...headerTitle },
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16, paddingBottom: 40 },
-  tabs: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  content: { paddingBottom: 30 },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   tabBtn: {
     flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
+    borderRadius: ui.radiusSm,
+    borderWidth: ui.borderWidth,
     borderColor: colors.cardBorder,
-    paddingVertical: 10,
+    paddingVertical: 9,
     alignItems: 'center',
   },
   tabBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textSecondary, fontWeight: '700', fontSize: 12 },
+  tabText: { color: colors.textSecondary, fontWeight: '700', fontSize: 11 },
   tabTextActive: { color: colors.white },
   targetBox: {
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: ui.radiusSm,
+    borderWidth: ui.borderWidth,
     borderColor: colors.cardBorder,
     backgroundColor: colors.card,
-    padding: 12,
-    marginBottom: 10,
+    padding: 10,
+    marginBottom: 8,
   },
   targetTitle: { fontWeight: '700', color: colors.text, marginBottom: 8 },
   targetChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   targetChip: {
     borderRadius: 999,
-    borderWidth: 1,
+    borderWidth: ui.borderWidth,
     borderColor: colors.cardBorder,
     paddingHorizontal: 10,
     paddingVertical: 6,

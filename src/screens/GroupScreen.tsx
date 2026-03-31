@@ -7,16 +7,17 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   TextInput,
-  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, headerTitle } from '../utils/colors';
+import { colors, headerTitle, ui } from '../utils/colors';
+import { uiStyles } from '../utils/uiStyles';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
 import { CrownBadge, InviteCard } from '../components';
 import { WeeklyRewardService } from '../services/weeklyRewardService';
+import { AppFeedbackModal } from '../components/AppFeedbackModal';
 
 export const GroupScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -31,6 +32,7 @@ export const GroupScreen: React.FC = () => {
   const [newGroupName, setNewGroupName] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
 
   const mapGroupError = (e: unknown): string => {
     const msg = e instanceof Error ? e.message : t('groupLoadFailed');
@@ -118,7 +120,7 @@ export const GroupScreen: React.FC = () => {
       await refreshUser();
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('joinGroupFailed');
-      Alert.alert(t('inviteError'), msg);
+      setFeedbackModal({ title: t('inviteError'), message: msg });
     } finally {
       setJoinLoading(false);
     }
@@ -133,7 +135,7 @@ export const GroupScreen: React.FC = () => {
       await refreshUser();
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('errorGeneric');
-      Alert.alert(t('error'), msg);
+      setFeedbackModal({ title: t('error'), message: msg });
     } finally {
       setCreateLoading(false);
     }
@@ -149,13 +151,13 @@ export const GroupScreen: React.FC = () => {
         </View>
         <ScrollView
           style={styles.emptyScroll}
-          contentContainerStyle={styles.empty}
+          contentContainerStyle={[styles.empty, uiStyles.content]}
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.emptyTitle}>{t('noGroupYet')}</Text>
           <Text style={styles.emptyText}>{t('groupOnboardingHint')}</Text>
 
-          <View style={styles.emptyCard}>
+          <View style={[styles.emptyCard, uiStyles.card]}>
             <View style={styles.emptyCardTitleRow}>
               <Ionicons name="people" size={18} color={colors.text} />
               <Text style={styles.emptyCardTitle}> {t('groupJoinSection')}</Text>
@@ -181,7 +183,7 @@ export const GroupScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.emptyCard}>
+          <View style={[styles.emptyCard, uiStyles.card]}>
             <View style={styles.emptyCardTitleRow}>
               <Ionicons name="sparkles" size={18} color={colors.text} />
               <Text style={styles.emptyCardTitle}> {t('groupCreateSection')}</Text>
@@ -206,6 +208,13 @@ export const GroupScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </ScrollView>
+      <AppFeedbackModal
+        visible={feedbackModal !== null}
+        title={feedbackModal?.title ?? ''}
+        message={feedbackModal?.message ?? ''}
+        buttonText={t('ok')}
+        onClose={() => setFeedbackModal(null)}
+      />
       </View>
     );
   }
@@ -250,7 +259,6 @@ export const GroupScreen: React.FC = () => {
       <Text style={styles.sectionTitle}>{t('members')}</Text>
       {members.map((m, i) => (
         <View key={i} style={styles.memberRow}>
-          <Ionicons name="person" size={20} color={colors.muted} style={styles.memberIcon} />
           <View style={{ flex: 1 }}>
             <Text style={styles.memberName}>{m.username}</Text>
             {m.id === championId && <CrownBadge label={t('championLabel')} />}
@@ -267,6 +275,13 @@ export const GroupScreen: React.FC = () => {
         </View>
       ))}
     </ScrollView>
+    <AppFeedbackModal
+      visible={feedbackModal !== null}
+      title={feedbackModal?.title ?? ''}
+      message={feedbackModal?.message ?? ''}
+      buttonText={t('ok')}
+      onClose={() => setFeedbackModal(null)}
+    />
     </View>
   );
 };
@@ -287,7 +302,7 @@ const styles = StyleSheet.create({
     ...headerTitle
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12
@@ -296,16 +311,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.cardBorder
   },
-  memberIcon: { marginRight: 12 },
   errorRow: { flexDirection: 'row', alignItems: 'center' },
   memberMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   memberStreakRow: { flexDirection: 'row', alignItems: 'center' },

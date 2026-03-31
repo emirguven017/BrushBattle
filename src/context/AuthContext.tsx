@@ -61,7 +61,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         points: 0,
         streak: 0,
         morningTime: '08:00',
+        middayTime: '14:00',
         eveningTime: '21:00',
+        dailySessionCount: 2,
         onboardingComplete: false
       };
       const uid = fbUser.uid;
@@ -100,7 +102,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       points: 0,
       streak: 0,
       morningTime: '08:00',
+      middayTime: '14:00',
       eveningTime: '21:00',
+      dailySessionCount: 2,
       onboardingComplete: false
     };
     await setDoc(doc(db, 'users', cred.user.uid), { ...base, id: cred.user.uid });

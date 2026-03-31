@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { colors, headerTitle } from '../utils/colors';
+import { colors, headerTitle, ui } from '../utils/colors';
+import { uiStyles } from '../utils/uiStyles';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { LeaderboardService } from '../services/LeaderboardService';
@@ -64,7 +65,7 @@ export const LeaderboardScreen: React.FC = () => {
           <Text style={styles.title}>{t('weeklyScoreTitle')}</Text>
         </View>
       </View>
-      <View style={styles.content}>
+      <View style={[styles.content, uiStyles.content]}>
       <View style={styles.rewardWrap}>
         <View style={styles.rewardCard}>
           <RewardCard rank={1} />
@@ -76,7 +77,7 @@ export const LeaderboardScreen: React.FC = () => {
           <RewardCard rank={3} />
         </View>
       </View>
-      <Text style={styles.rankingTitle}>{t('ranking')}</Text>
+      <Text style={[uiStyles.sectionTitle, styles.rankingTitle]}>{t('ranking')}</Text>
       <FlatList
         data={rankings}
         keyExtractor={r => r.userId}
@@ -135,20 +136,17 @@ const styles = StyleSheet.create({
   rewardWrap: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
     gap: 6,
   },
   rewardCard: { flex: 1, minWidth: 0 },
   rankingTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: colors.text,
-    paddingHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 8,
+    paddingHorizontal: ui.screenPadding,
+    marginTop: 6,
+    marginBottom: 6,
   },
-  list: { paddingHorizontal: 20, paddingBottom: 40 },
+  list: { paddingHorizontal: ui.screenPadding, paddingBottom: 32 },
   listEmpty: { flexGrow: 1, minHeight: 120 },
   emptyRanking: {
     paddingVertical: 24,
@@ -182,23 +180,23 @@ const styles = StyleSheet.create({
     right: 10,
     top: '50%',
     marginTop: -14,
-    backgroundColor: colors.accent,
-    minWidth: 88,
-    height: 28,
+    backgroundColor: colors.white,
+    minWidth: 82,
+    height: 26,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: ui.radiusSm,
+    borderWidth: 1,
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 4
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0
   },
   targetBtnText: {
     fontSize: 11,
     fontWeight: '800',
-    color: colors.white,
+    color: colors.accent,
     textAlign: 'center',
     lineHeight: 12
   }

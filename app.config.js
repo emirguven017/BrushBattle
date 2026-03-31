@@ -1,6 +1,6 @@
 module.exports = {
   expo: {
-    name: "Brush Battle",
+    name: "Brush Timer",
     slug: "brush-battle",
     scheme: "brushbattle",
     plugins: ["expo-video"],

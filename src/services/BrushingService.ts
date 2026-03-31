@@ -17,8 +17,8 @@ import { EffectService } from './effectService';
 import { MarketService } from './marketService';
 import { WeeklyRewardService } from './weeklyRewardService';
 
-const SESSION_POINTS = 10;
-const DAILY_BONUS_POINTS = 10;
+const DAILY_MAX_POINTS = 20;
+const DAILY_BONUS_POINTS = 0;
 const SESSION_BR = 5;
 const DAILY_BONUS_BR = 10;
 
@@ -46,12 +46,16 @@ const toLocalScheduledMs = (dateStr: string, timeStr: string): number | null => 
 
 /** Seans planlanan saatten 1 saatten fazla geç tamamlandıysa true. Yerel saatle karşılaştırır. */
 const isSessionCompletedLate = (
-  session: { date: string; sessionType: 'morning' | 'evening'; completedAt?: number; scheduledTime?: string },
-  user: { morningTime?: string; eveningTime?: string }
+  session: { date: string; sessionType: SessionType; completedAt?: number; scheduledTime?: string },
+  user: { morningTime?: string; middayTime?: string; eveningTime?: string }
 ): boolean => {
   try {
-    const timeStr = session.scheduledTime
-      ?? (session.sessionType === 'morning' ? (user.morningTime ?? '08:00') : (user.eveningTime ?? '21:00'));
+    const fallbackTime = session.sessionType === 'morning'
+      ? (user.morningTime ?? '08:00')
+      : session.sessionType === 'midday'
+        ? (user.middayTime ?? '14:00')
+        : (user.eveningTime ?? '21:00');
+    const timeStr = session.scheduledTime ?? fallbackTime;
     const parts = session.date.split('-');
     const [year, month, day] = parts.map(Number);
     const timeParts = timeStr.split(':');
@@ -68,21 +72,37 @@ const isSessionCompletedLate = (
 };
 
 export const BrushingService = {
+  getPlannedSessionTypesForUser(user: User): SessionType[] {
+    const count = Math.min(3, Math.max(1, Number(user.dailySessionCount ?? 2)));
+    if (count === 1) return ['morning'];
+    if (count === 2) return ['morning', 'evening'];
+    return ['morning', 'midday', 'evening'];
+  },
+
+  getScheduledTimeForSessionType(user: User, sessionType: SessionType): string {
+    if (sessionType === 'morning') return user.morningTime ?? '08:00';
+    if (sessionType === 'midday') return user.middayTime ?? '14:00';
+    return user.eveningTime ?? '21:00';
+  },
+
+  getSessionPointsForUser(user: User): number {
+    const count = Math.min(3, Math.max(1, Number(user.dailySessionCount ?? 2)));
+    return Math.max(1, Math.floor(DAILY_MAX_POINTS / count));
+  },
+
   async lockTodayScheduleForUser(user: User): Promise<void> {
     const todaySessions = await this.getTodaySessions(user.id);
-    const typeToTime: Record<SessionType, string> = {
-      morning: user.morningTime ?? '08:00',
-      evening: user.eveningTime ?? '21:00'
-    };
+    const plannedTypes = this.getPlannedSessionTypesForUser(user);
 
-    for (const sessionType of ['morning', 'evening'] as const) {
+    for (const sessionType of plannedTypes) {
       const existing = todaySessions.find((s) => s.sessionType === sessionType);
+      const scheduledTime = this.getScheduledTimeForSessionType(user, sessionType);
       if (!existing) {
         await addDoc(collection(db, 'brushSessions'), {
           userId: user.id,
           date: todayKey(),
           sessionType,
-          scheduledTime: typeToTime[sessionType],
+          scheduledTime,
           status: 'pending',
           pointsEarned: 0,
           dayBonusApplied: false
@@ -92,7 +112,7 @@ export const BrushingService = {
       if (existing.status === 'completed') continue;
       if (!existing.scheduledTime) {
         await updateDoc(doc(db, 'brushSessions', existing.id), {
-          scheduledTime: typeToTime[sessionType]
+          scheduledTime
         });
       }
     }
@@ -120,16 +140,13 @@ export const BrushingService = {
 
   /** Sabah + akşam tamamlanmış ve ikisi de vaktinde mi */
   isDayPerfect(sessions: BrushSession[], user: User): boolean {
-    const morning = sessions.find(
-      (s) => s.sessionType === 'morning' && s.status === 'completed'
-    );
-    const evening = sessions.find(
-      (s) => s.sessionType === 'evening' && s.status === 'completed'
-    );
-    if (!morning || !evening) return false;
-    return (
-      !isSessionCompletedLate(morning, user) && !isSessionCompletedLate(evening, user)
-    );
+    const plannedTypes = this.getPlannedSessionTypesForUser(user);
+    if (plannedTypes.length === 0) return false;
+    return plannedTypes.every((type) => {
+      const session = sessions.find((s) => s.sessionType === type && s.status === 'completed');
+      if (!session) return false;
+      return !isSessionCompletedLate(session, user);
+    });
   },
 
   async getSessionsForMonth(userId: string, year: number, month: number): Promise<BrushSession[]> {
@@ -147,7 +164,13 @@ export const BrushingService = {
   },
 
   async startSession(user: User, sessionType: SessionType): Promise<BrushSession> {
-    const scheduleTime = sessionType === 'morning' ? (user.morningTime ?? '08:00') : (user.eveningTime ?? '21:00');
+    const plannedTypes = this.getPlannedSessionTypesForUser(user);
+    if (!plannedTypes.includes(sessionType)) {
+      const err = new Error('SESSION_NOT_IN_PLAN');
+      (err as Error & { code?: string }).code = 'SESSION_NOT_IN_PLAN';
+      throw err;
+    }
+    const scheduleTime = this.getScheduledTimeForSessionType(user, sessionType);
     const scheduledMs = toLocalScheduledMs(todayKey(), scheduleTime);
     if (scheduledMs !== null && Date.now() < scheduledMs - EARLY_START_WINDOW_MS) {
       const err = new Error('TOO_EARLY_TO_START');
@@ -199,7 +222,8 @@ export const BrushingService = {
     const weeklyBuff = await EffectService.hasActiveEffect(user.id, 'bonus_points');
     const pointMultiplier = hasDoublePoints ? 2 : 1;
     const extraMultiplier = Number(weeklyBuff?.meta?.multiplier ?? 1);
-    const pointsToGrant = isLate || frozen ? 0 : Math.round(SESSION_POINTS * pointMultiplier * extraMultiplier);
+    const baseSessionPoints = this.getSessionPointsForUser(user);
+    const pointsToGrant = isLate || frozen ? 0 : Math.round(baseSessionPoints * pointMultiplier * extraMultiplier);
 
     // Comeback mekanigi: dusuk puanli kullanicilar ufak BR destegi alir. Geç tamamlanmışsa BR yok.
     const comebackBr = isLate ? 0 : (user.points ?? 0) < 100 ? 2 : 0;
@@ -253,31 +277,29 @@ export const BrushingService = {
 
     // Gün içindeki iki seans da tamamlandı mı ve ikisi de vaktinde mi kontrol et
     const todaySessions = await this.getTodaySessions(user.id);
-    const morningDone = todaySessions.find(
-      s => s.sessionType === 'morning' && s.status === 'completed'
-    );
-    const eveningDone = todaySessions.find(
-      s => s.sessionType === 'evening' && s.status === 'completed'
-    );
+    const plannedTypes = this.getPlannedSessionTypesForUser(user);
+    const plannedSessions = plannedTypes
+      .map((type) => todaySessions.find((s) => s.sessionType === type))
+      .filter((s): s is BrushSession => Boolean(s));
+    const allCompleted = plannedSessions.length === plannedTypes.length
+      && plannedSessions.every((s) => s.status === 'completed');
+    const allOnTime = allCompleted && plannedSessions.every((s) => !isSessionCompletedLate(s, user));
 
-    const bothCompleted = Boolean(morningDone && eveningDone);
-    const morningOnTime = morningDone ? !isSessionCompletedLate(morningDone, user) : false;
-    const eveningOnTime = eveningDone ? !isSessionCompletedLate(eveningDone, user) : false;
-    const bothOnTime = morningOnTime && eveningOnTime;
-
-    if (bothCompleted && bothOnTime) {
+    if (allCompleted && allOnTime) {
       // Günlük bonus daha önce uygulanmadıysa uygula (sadece ikisi de vaktinde tamamlandıysa)
-      const bonusCarrier = eveningDone;
+      const bonusCarrier = plannedSessions[plannedSessions.length - 1];
       if (bonusCarrier && !bonusCarrier.dayBonusApplied) {
-        await updateDoc(userRef, { points: increment(DAILY_BONUS_POINTS) });
-        gainedPoints += DAILY_BONUS_POINTS;
-        await WeeklyRewardService.addWeeklyPoints({
-          groupId: user.groupId,
-          userId: user.id,
-          username: user.username,
-          streak: user.streak ?? 0,
-          points: DAILY_BONUS_POINTS,
-        });
+        if (DAILY_BONUS_POINTS > 0) {
+          await updateDoc(userRef, { points: increment(DAILY_BONUS_POINTS) });
+          gainedPoints += DAILY_BONUS_POINTS;
+          await WeeklyRewardService.addWeeklyPoints({
+            groupId: user.groupId,
+            userId: user.id,
+            username: user.username,
+            streak: user.streak ?? 0,
+            points: DAILY_BONUS_POINTS,
+          });
+        }
         await InventoryService.addBrScore(user.id, DAILY_BONUS_BR);
         gainedBr += DAILY_BONUS_BR;
         await updateDoc(doc(db, 'brushSessions', bonusCarrier.id), {
@@ -293,13 +315,10 @@ export const BrushingService = {
         const yesterdaySessions = await this.getSessionsForDate(user.id, yesterdayKey());
         const yesterdayPerfect = this.isDayPerfect(yesterdaySessions, user);
 
-        const yesterdayMorningDone = yesterdaySessions.some(
-          (s) => s.sessionType === 'morning' && s.status === 'completed'
-        );
-        const yesterdayEveningDone = yesterdaySessions.some(
-          (s) => s.sessionType === 'evening' && s.status === 'completed'
-        );
-        const yesterdayNothingCompleted = !yesterdayMorningDone && !yesterdayEveningDone;
+        const yesterdayCompletedCount = yesterdaySessions.filter(
+          (s) => s.status === 'completed'
+        ).length;
+        const yesterdayNothingCompleted = yesterdayCompletedCount === 0;
 
         let yesterdayPerfectEffective = yesterdayPerfect;
         if (!yesterdayPerfect && S === 0 && !P && yesterdayNothingCompleted) {

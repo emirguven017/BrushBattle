@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import { MarketService } from '../services/marketService';
 import { NotificationService } from '../services/NotificationService';
 import { EffectService } from '../services/effectService';
 import type { ActiveEffect, EffectType, MarketItemId, User } from '../types';
+import { AppFeedbackModal } from '../components/AppFeedbackModal';
+import { AppConfirmModal } from '../components/AppConfirmModal';
 
 const ITEM_ORDER: MarketItemId[] = [
   'freeze',
@@ -59,6 +61,8 @@ export const UseFeatureScreen: React.FC = () => {
   const [targetActiveEffects, setTargetActiveEffects] = useState<ActiveEffect[]>([]);
   const [targetUserId, setTargetUserId] = useState<string | undefined>(initialTargetUserId);
   const [busyItemId, setBusyItemId] = useState<MarketItemId | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
+  const [confirmState, setConfirmState] = useState<{ itemId: MarketItemId; title: string; message: string } | null>(null);
 
   const itemTitleKey: Record<MarketItemId, string> = {
     freeze: 'marketItemFreezeTitle',
@@ -185,11 +189,11 @@ export const UseFeatureScreen: React.FC = () => {
     const isAttack = ATTACK_ITEMS.includes(itemId);
     if (isAttack) {
       if (!user.groupId) {
-        Alert.alert(t('error'), t('joinGroupFirst'));
+        setFeedbackModal({ title: t('error'), message: t('joinGroupFirst') });
         return;
       }
       if (!targetUserId || targetUserId === user.id) {
-        Alert.alert(t('error'), t('cannotAttackSelf'));
+        setFeedbackModal({ title: t('error'), message: t('cannotAttackSelf') });
         return;
       }
     }
@@ -198,10 +202,10 @@ export const UseFeatureScreen: React.FC = () => {
       setBusyItemId(itemId);
       await MarketService.useItem(user.id, itemId, isAttack ? targetUserId : undefined);
       await NotificationService.notifyMarketEvent(t('useFeatureTitle'), t('itemUsed'));
-      Alert.alert(t('info'), t('itemUsed'));
+      setFeedbackModal({ title: t('info'), message: t('itemUsed') });
       await load();
     } catch (e) {
-      Alert.alert(t('error'), normalizeError(e));
+      setFeedbackModal({ title: t('error'), message: normalizeError(e) });
       await load().catch(() => {});
     } finally {
       setBusyItemId(null);
@@ -213,11 +217,11 @@ export const UseFeatureScreen: React.FC = () => {
     const isAttack = ATTACK_ITEMS.includes(itemId);
     if (isAttack) {
       if (!user.groupId) {
-        Alert.alert(t('error'), t('joinGroupFirst'));
+        setFeedbackModal({ title: t('error'), message: t('joinGroupFirst') });
         return;
       }
       if (!targetUserId || targetUserId === user.id) {
-        Alert.alert(t('error'), t('cannotAttackSelf'));
+        setFeedbackModal({ title: t('error'), message: t('cannotAttackSelf') });
         return;
       }
     }
@@ -230,19 +234,11 @@ export const UseFeatureScreen: React.FC = () => {
       : t('confirmUseFeatureSelfMessage')
           .replace('{feature}', featureName);
 
-    Alert.alert(
-      t('confirmUseFeatureTitle'),
+    setConfirmState({
+      itemId,
+      title: t('confirmUseFeatureTitle'),
       message,
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('use'),
-          onPress: () => {
-            performUse(itemId);
-          }
-        }
-      ]
-    );
+    });
   };
 
   const goToMarket = () => {
@@ -376,7 +372,28 @@ export const UseFeatureScreen: React.FC = () => {
             {selfFeatureItems.map(({ id, quantity }) => renderItemCard(id, quantity))}
           </>
         )}
-      </ScrollView>
+    </ScrollView>
+    <AppFeedbackModal
+      visible={feedbackModal !== null}
+      title={feedbackModal?.title ?? ''}
+      message={feedbackModal?.message ?? ''}
+      buttonText={t('ok')}
+      onClose={() => setFeedbackModal(null)}
+    />
+    <AppConfirmModal
+      visible={confirmState !== null}
+      title={confirmState?.title ?? ''}
+      message={confirmState?.message ?? ''}
+      cancelText={t('cancel')}
+      confirmText={t('use')}
+      onCancel={() => setConfirmState(null)}
+      onConfirm={() => {
+        if (!confirmState) return;
+        const id = confirmState.itemId;
+        setConfirmState(null);
+        performUse(id).catch(() => {});
+      }}
+    />
     </View>
   );
 };

@@ -11,3 +11,7 @@ coverage/
 android/build/
 android/app/build/
 ios/build/
+
+# Memory Bank MCP (npm clone + veri klasörü)
+memory-bank-mcp/node_modules/
+.memory-bank-root/

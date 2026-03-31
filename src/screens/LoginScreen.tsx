@@ -3,7 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingVi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, headerTitle } from '../utils/colors';
+import { colors } from '../utils/colors';
+import { AppBranding } from '../components/AppBranding';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -98,8 +99,7 @@ export const LoginScreen: React.FC = () => {
       >
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
-            <Text style={styles.titleBarText}>{t('appName')}</Text>
-            <Text style={styles.titleBarSub}>{t('forgotPasswordTitle')}</Text>
+            <AppBranding title={t('appName')} subtitle={t('forgotPasswordTitle')} tone="onBrand" logoSize={84} />
           </View>
           <View style={styles.container}>
             <Text style={styles.forgotDesc}>{t('forgotPasswordDesc')}</Text>
@@ -138,8 +138,7 @@ export const LoginScreen: React.FC = () => {
     >
       <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
       <View style={styles.titleBar}>
-        <Text style={styles.titleBarText}>{t('appName')}</Text>
-        <Text style={styles.titleBarSub}>{t('appTagline')}</Text>
+        <AppBranding title={t('appName')} subtitle={t('appTagline')} tone="onBrand" logoSize={84} />
       </View>
       <View style={styles.container}>
       {isSignUp && (
@@ -219,53 +218,44 @@ const styles = StyleSheet.create({
   greenHeader: { flex: 1, backgroundColor: colors.primary },
   titleBar: {
     backgroundColor: colors.primary,
-    paddingVertical: 20,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center'
   },
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 24,
+    padding: 20,
     justifyContent: 'center'
-  },
-  titleBarText: {
-    ...headerTitle
-  },
-  titleBarSub: {
-    fontSize: 13,
-    color: colors.white,
-    opacity: 0.9,
-    marginTop: 4
   },
   input: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
     backgroundColor: colors.white,
     fontSize: 16
   },
   passwordInputWrap: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: 14,
-    marginBottom: 12,
+    borderRadius: 12,
+    marginBottom: 10,
     backgroundColor: colors.white,
     flexDirection: 'row',
     alignItems: 'center'
   },
   eyeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center'
   },
   passwordInput: {
     flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     fontSize: 16
   },
   error: { color: colors.error, marginBottom: 8 },
@@ -312,10 +302,10 @@ const styles = StyleSheet.create({
   },
   btn: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: 12,
+    padding: 16,
     alignItems: 'center',
-    marginTop: 8
+    marginTop: 6
   },
   btnText: { color: colors.white, fontWeight: '700', fontSize: 17 },
   switch: { color: colors.accent, marginTop: 20, textAlign: 'center', fontSize: 15 }

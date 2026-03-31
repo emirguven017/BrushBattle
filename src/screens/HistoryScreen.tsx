@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, headerTitle } from '../utils/colors';
+import { colors, headerTitle, ui } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
@@ -26,6 +26,7 @@ export const HistoryScreen: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [days, setDays] = useState<Record<string, DayData>>({});
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
+  const plannedCount = Math.min(3, Math.max(1, Number(user?.dailySessionCount ?? 2)));
 
   const loadMonth = async () => {
     if (!user) return;
@@ -40,17 +41,17 @@ export const HistoryScreen: React.FC = () => {
       const daySessions = sessions.filter(s => s.date === key);
       const morning = daySessions.find(s => s.sessionType === 'morning');
       const evening = daySessions.find(s => s.sessionType === 'evening');
+      const completedCount = daySessions.filter((s) => s.status === 'completed').length;
       const morningDone = morning?.status === 'completed';
       const eveningDone = evening?.status === 'completed';
       let status: DayStatus = 'empty';
-      if (morningDone && eveningDone) status = 'full';
-      else if (morningDone || eveningDone) status = 'partial';
+      if (completedCount >= plannedCount) status = 'full';
+      else if (completedCount > 0) status = 'partial';
       else if (daySessions.length > 0) status = 'missed';
 
       const points =
-        (morning?.pointsEarned ?? 0) +
-        (evening?.pointsEarned ?? 0) +
-        (morning?.dayBonusApplied || evening?.dayBonusApplied ? 10 : 0);
+        daySessions.reduce((sum, s) => sum + (s.pointsEarned ?? 0), 0) +
+        (daySessions.some((s) => s.dayBonusApplied) ? 10 : 0);
 
       map[key] = {
         date: key,
@@ -65,7 +66,7 @@ export const HistoryScreen: React.FC = () => {
 
   useEffect(() => {
     loadMonth();
-  }, [user?.id, currentMonth.getFullYear(), currentMonth.getMonth()]);
+  }, [user?.id, user?.dailySessionCount, currentMonth.getFullYear(), currentMonth.getMonth()]);
 
   const handleMonthChange = (delta: number) => {
     setCurrentMonth(
@@ -217,12 +218,12 @@ const styles = StyleSheet.create({
   legend: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: ui.spacingMd,
     flexWrap: 'wrap',
-    marginHorizontal: 16
+    marginHorizontal: ui.screenPadding
   },
   legendRow: { flexDirection: 'row', alignItems: 'center', marginRight: 16, marginBottom: 8 },
-  legendDot: { width: 14, height: 14, borderRadius: 7, marginRight: 6 },
+  legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 6 },
   legendText: { fontSize: 12, color: colors.muted },
   modalOverlay: {
     flex: 1,
@@ -232,15 +233,15 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: ui.radiusLg,
+    padding: ui.spacingLg,
     width: '85%',
     maxWidth: 320
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: 14,
     color: colors.text
   },
   section: {

@@ -16,11 +16,14 @@ export const OnboardingScreen: React.FC = () => {
   const { user, refreshUser } = useAuth();
   const [username, setUsername] = useState(user?.username ?? '');
   const [morningTime, setMorningTime] = useState(user?.morningTime ?? '08:00');
+  const [middayTime, setMiddayTime] = useState(user?.middayTime ?? '14:00');
   const [eveningTime, setEveningTime] = useState(user?.eveningTime ?? '21:00');
+  const [dailySessionCount, setDailySessionCount] = useState<1 | 2 | 3>(user?.dailySessionCount ?? 2);
   const [groupName, setGroupName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [err, setErr] = useState('');
   const [showMorningPicker, setShowMorningPicker] = useState(false);
+  const [showMiddayPicker, setShowMiddayPicker] = useState(false);
   const [showEveningPicker, setShowEveningPicker] = useState(false);
 
   const handleFinish = async () => {
@@ -31,7 +34,9 @@ export const OnboardingScreen: React.FC = () => {
       await updateDoc(userRef, {
         username: username.trim() || user.username,
         morningTime: morningTime || '08:00',
+        middayTime: middayTime || '14:00',
         eveningTime: eveningTime || '21:00',
+        dailySessionCount,
         onboardingComplete: true
       });
 
@@ -89,30 +94,78 @@ export const OnboardingScreen: React.FC = () => {
             </View>
           )}
         </View>
-        <View>
-          <Text style={styles.timeLabel}>{t('eveningTime')}</Text>
-          <TouchableOpacity
-            style={styles.timeButton}
-            onPress={() => setShowEveningPicker(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.timeButtonRow}>
-              <Ionicons name="moon-outline" size={18} color={colors.text} />
-              <Text style={styles.timeButtonText}> {eveningTime}</Text>
-            </View>
-            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-          </TouchableOpacity>
-          {showEveningPicker && (
-            <View style={styles.pickerContainer}>
-              <TimePicker24 value={eveningTime} onChange={setEveningTime} />
-              <TouchableOpacity
-                style={styles.pickerDoneBtn}
-                onPress={() => setShowEveningPicker(false)}
-              >
-                <Text style={styles.pickerDoneText}>{t('ok')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        {dailySessionCount === 3 && (
+          <View>
+            <Text style={styles.timeLabel}>{t('middayTime')}</Text>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => setShowMiddayPicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.timeButtonRow}>
+                <Ionicons name="sunny-outline" size={18} color={colors.text} />
+                <Text style={styles.timeButtonText}> {middayTime}</Text>
+              </View>
+              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+            </TouchableOpacity>
+            {showMiddayPicker && (
+              <View style={styles.pickerContainer}>
+                <TimePicker24 value={middayTime} onChange={setMiddayTime} />
+                <TouchableOpacity
+                  style={styles.pickerDoneBtn}
+                  onPress={() => setShowMiddayPicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+        {dailySessionCount >= 2 && (
+          <View>
+            <Text style={styles.timeLabel}>{t('eveningTime')}</Text>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => setShowEveningPicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.timeButtonRow}>
+                <Ionicons name="moon-outline" size={18} color={colors.text} />
+                <Text style={styles.timeButtonText}> {eveningTime}</Text>
+              </View>
+              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+            </TouchableOpacity>
+            {showEveningPicker && (
+              <View style={styles.pickerContainer}>
+                <TimePicker24 value={eveningTime} onChange={setEveningTime} />
+                <TouchableOpacity
+                  style={styles.pickerDoneBtn}
+                  onPress={() => setShowEveningPicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+        <View style={styles.perDayWrap}>
+          <Text style={styles.timeLabel}>{t('wwPerDayTitle')}</Text>
+          <View style={styles.perDayRow}>
+            {[1, 2, 3].map((count) => {
+              const selected = dailySessionCount === count;
+              return (
+                <TouchableOpacity
+                  key={count}
+                  style={[styles.perDayChip, selected && styles.perDayChipSelected]}
+                  onPress={() => setDailySessionCount(count as 1 | 2 | 3)}
+                >
+                  <Text style={[styles.perDayChipText, selected && styles.perDayChipTextSelected]}>
+                    {count}x
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
         <View style={styles.groupCard}>
           <View style={styles.groupHeader}>
@@ -213,6 +266,33 @@ const styles = StyleSheet.create({
   },
   pickerContainer: {
     marginBottom: 12
+  },
+  perDayWrap: {
+    marginBottom: 12
+  },
+  perDayRow: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  perDayChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center'
+  },
+  perDayChipSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '14'
+  },
+  perDayChipText: {
+    color: colors.text,
+    fontWeight: '600'
+  },
+  perDayChipTextSelected: {
+    color: colors.primary
   },
   pickerDoneBtn: {
     marginTop: 8,

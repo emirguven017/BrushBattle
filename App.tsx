@@ -1,6 +1,7 @@
 import React from 'react';
-import { Alert, Linking as RNLinking } from 'react-native';
+import { Linking as RNLinking, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ExpoLinking from 'expo-linking';
@@ -18,6 +19,7 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { BrushingTimerScreen } from './src/screens/BrushingTimerScreen';
+import { BrushingMenuScreen } from './src/screens/BrushingMenuScreen';
 import { GroupScreen } from './src/screens/GroupScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
@@ -28,6 +30,16 @@ import { colors, headerTitle } from './src/utils/colors';
 import { GroupService } from './src/services/GroupService';
 import { NotificationService } from './src/services/NotificationService';
 import { NotificationInboxService } from './src/services/notificationInboxService';
+import {
+  FIRST_RUN_LANGUAGE_DONE_KEY,
+  WELCOME_WIZARD_DONE_KEY,
+  WELCOME_WIZARD_DATA_KEY,
+  firstRunLanguageAccountDoneKey,
+  welcomeWizardAccountDoneKey,
+} from './src/constants/welcomeWizard';
+import { WelcomeWizardScreen } from './src/screens/WelcomeWizardScreen';
+import { LanguagePickFirstScreen } from './src/screens/LanguagePickFirstScreen';
+import { AppFeedbackModal } from './src/components/AppFeedbackModal';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -62,6 +74,24 @@ const HomeStack: React.FC = () => {
   );
 };
 
+const BrushingStack: React.FC = () => {
+  const { t } = useLanguage();
+  return (
+    <Stack.Navigator screenOptions={headerOptions}>
+      <Stack.Screen
+        name="BrushingMenuMain"
+        component={BrushingMenuScreen}
+        options={{ title: t('brushingMenu') }}
+      />
+      <Stack.Screen
+        name="BrushingTimer"
+        component={BrushingTimerScreen}
+        options={{ title: t('brushingTime') }}
+      />
+    </Stack.Navigator>
+  );
+};
+
 const LeaderboardStack: React.FC = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -85,11 +115,11 @@ const AppTabs: React.FC = () => {
           backgroundColor: colors.card,
           borderTopWidth: 1,
           borderTopColor: colors.cardBorder,
-          paddingTop: 8,
-          paddingBottom: Math.max(insets.bottom, 12),
-          height: 60 + Math.max(insets.bottom, 12)
+          paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 8),
+          height: 56 + Math.max(insets.bottom, 8)
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' }
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '600' }
       }}
     >
       <Tab.Screen
@@ -124,6 +154,38 @@ const AppTabs: React.FC = () => {
         }}
       />
       <Tab.Screen
+        name="BrushingMenu"
+        component={BrushingStack}
+        options={{
+          tabBarLabel: t('brushingMenu'),
+          tabBarIcon: ({ focused }) => (
+            <View
+              style={{
+                width: 62,
+                height: 62,
+                borderRadius: 31,
+                marginTop: -22,
+                backgroundColor: colors.white,
+                borderWidth: 5,
+                borderColor: focused ? colors.primary : colors.cardBorder,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <MaterialCommunityIcons name="toothbrush" size={32} color={colors.primary} />
+            </View>
+          ),
+          tabBarButton: (props) => (
+            <TouchableOpacity
+              {...props}
+              activeOpacity={0.9}
+              style={[props.style, { justifyContent: 'center', alignItems: 'center' }]}
+            />
+          ),
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 4 },
+        }}
+      />
+      <Tab.Screen
         name="BRMarket"
         component={BRMarketScreen}
         options={{
@@ -154,20 +216,99 @@ const AppTabs: React.FC = () => {
 const RootNavigatorInner: React.FC = () => {
   const { t } = useLanguage();
   const { user, loading, refreshUser } = useAuth();
+  const [welcomeWizardDone, setWelcomeWizardDone] = React.useState<boolean | null>(null);
+  const [firstRunLanguageDone, setFirstRunLanguageDone] = React.useState<boolean | null>(null);
+  const [accountLanguageResolved, setAccountLanguageResolved] = React.useState<boolean | null>(null);
+  const [accountWizardResolved, setAccountWizardResolved] = React.useState<boolean | null>(null);
+  const [feedbackModal, setFeedbackModal] = React.useState<{ title: string; message: string } | null>(null);
+
+  React.useEffect(() => {
+    Promise.all([
+      AsyncStorage.getItem(WELCOME_WIZARD_DONE_KEY),
+      AsyncStorage.getItem(FIRST_RUN_LANGUAGE_DONE_KEY),
+    ])
+      .then(([wizard, lang]) => {
+        setWelcomeWizardDone(wizard === 'true');
+        setFirstRunLanguageDone(lang === 'true');
+      })
+      .catch(() => {
+        setWelcomeWizardDone(false);
+        setFirstRunLanguageDone(false);
+      });
+  }, []);
+
   const {
     hasSeenIntroForNewUser,
     showIntroOverlay,
     refreshNewUserIntroStatus,
-    markIntroComplete,
     markNewUserIntroComplete,
-    dismissIntroOverlay
+    dismissIntroOverlay,
+    clearNewUserIntroOnLogout,
   } = useIntro();
+
+  React.useEffect(() => {
+    if (!user) {
+      clearNewUserIntroOnLogout();
+    }
+  }, [user, clearNewUserIntroOnLogout]);
 
   React.useEffect(() => {
     if (user?.id && !user?.onboardingComplete) {
       refreshNewUserIntroStatus(user.id);
     }
   }, [user?.id, user?.onboardingComplete, refreshNewUserIntroStatus]);
+
+  React.useEffect(() => {
+    if (!user?.id || user.onboardingComplete) {
+      setAccountLanguageResolved(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const done = await AsyncStorage.getItem(firstRunLanguageAccountDoneKey(user.id));
+        if (!cancelled) setAccountLanguageResolved(done === 'true');
+      } catch {
+        if (!cancelled) setAccountLanguageResolved(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.onboardingComplete]);
+
+  React.useEffect(() => {
+    if (!user?.id || user.onboardingComplete) {
+      setAccountWizardResolved(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const accountKey = welcomeWizardAccountDoneKey(user.id);
+        const accDone = await AsyncStorage.getItem(accountKey);
+        if (cancelled) return;
+        if (accDone === 'true') {
+          setAccountWizardResolved(true);
+          return;
+        }
+        const deviceDone = await AsyncStorage.getItem(WELCOME_WIZARD_DONE_KEY);
+        const data = await AsyncStorage.getItem(WELCOME_WIZARD_DATA_KEY);
+        if (cancelled) return;
+        if (deviceDone === 'true' && data) {
+          await AsyncStorage.setItem(accountKey, 'true');
+          setAccountWizardResolved(true);
+          return;
+        }
+        setAccountWizardResolved(false);
+      } catch {
+        if (!cancelled) setAccountWizardResolved(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.onboardingComplete]);
 
   const joinFromCode = React.useCallback(async (code: string) => {
     if (!code?.trim()) return;
@@ -178,10 +319,10 @@ const RootNavigatorInner: React.FC = () => {
     try {
       await GroupService.joinGroup(user.id, code);
       await refreshUser();
-      Alert.alert(t('joinedGroupSuccess'));
+      setFeedbackModal({ title: t('info'), message: t('joinedGroupSuccess') });
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('joinGroupFailed');
-      Alert.alert(t('inviteError'), msg);
+      setFeedbackModal({ title: t('inviteError'), message: msg });
     } finally {
       await AsyncStorage.removeItem(PENDING_INVITE_KEY);
     }
@@ -219,43 +360,85 @@ const RootNavigatorInner: React.FC = () => {
   React.useEffect(() => {
     if (!user) return;
     NotificationService.syncDailyBaseReminders(user).catch(() => {});
-  }, [user?.id, user?.morningTime, user?.eveningTime]);
+  }, [user?.id, user?.dailySessionCount, user?.morningTime, user?.middayTime, user?.eveningTime]);
 
   React.useEffect(() => {
     if (!user?.id) return;
     return NotificationInboxService.subscribeInbox(user.id);
   }, [user?.id]);
 
-  const needsOnboarding = user && !user.onboardingComplete;
+  const needsOnboarding = Boolean(user && !user.onboardingComplete);
   const needsNewUserIntro = needsOnboarding && hasSeenIntroForNewUser !== true;
 
   if (showIntroOverlay && user) {
-    return (
-      <IntroScreen
-        onComplete={dismissIntroOverlay}
-      />
-    );
+    return <IntroScreen onComplete={dismissIntroOverlay} />;
   }
-  if (user && needsOnboarding && !needsNewUserIntro) {
+
+  if (user && needsOnboarding) {
+    if (accountLanguageResolved === null) {
+      return <SplashScreen />;
+    }
+    if (accountLanguageResolved === false) {
+      return (
+        <LanguagePickFirstScreen
+          mode="account"
+          userId={user.id}
+          onComplete={() => setAccountLanguageResolved(true)}
+        />
+      );
+    }
+    if (accountWizardResolved === null) {
+      return <SplashScreen />;
+    }
+    if (accountWizardResolved === false) {
+      return (
+        <WelcomeWizardScreen
+          mode="account"
+          userId={user.id}
+          onComplete={() => setAccountWizardResolved(true)}
+        />
+      );
+    }
+    if (hasSeenIntroForNewUser === null) {
+      return <SplashScreen />;
+    }
+    if (needsNewUserIntro) {
+      return (
+        <IntroScreen
+          onComplete={() => user.id && markNewUserIntroComplete(user.id)}
+        />
+      );
+    }
     return <OnboardingScreen />;
   }
-  if (user && needsNewUserIntro) {
-    return (
-      <IntroScreen
-        onComplete={() => user.id && markNewUserIntroComplete(user.id)}
-      />
-    );
-  }
+
   if (user) {
     return <AppTabs />;
   }
-  if (loading) {
+  if (loading || welcomeWizardDone === null || firstRunLanguageDone === null) {
     return <SplashScreen />;
   }
+  if (!welcomeWizardDone) {
+    if (!firstRunLanguageDone) {
+      return (
+        <LanguagePickFirstScreen onComplete={() => setFirstRunLanguageDone(true)} />
+      );
+    }
+    return <WelcomeWizardScreen onComplete={() => setWelcomeWizardDone(true)} />;
+  }
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Login" component={LoginScreen} />
+      </Stack.Navigator>
+      <AppFeedbackModal
+        visible={feedbackModal !== null}
+        title={feedbackModal?.title ?? ''}
+        message={feedbackModal?.message ?? ''}
+        buttonText={t('ok')}
+        onClose={() => setFeedbackModal(null)}
+      />
+    </>
   );
 };
 

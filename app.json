@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Brush Battle",
+    "name": "Brush Timer",
     "slug": "brush-battle",
     "ios": {
       "bundleIdentifier": "com.brushbattle"

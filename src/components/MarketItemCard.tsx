@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { colors, ui } from '../utils/colors';
+import { uiStyles } from '../utils/uiStyles';
 import type { MarketItem, MarketItemId } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -32,7 +33,7 @@ export const MarketItemCard: React.FC<MarketItemCardProps> = ({
   const { t } = useLanguage();
   const iconName = ITEM_ICONS[item.id] ?? 'gift';
   return (
-    <View style={styles.card}>
+    <View style={[uiStyles.card, styles.card]}>
       <View style={styles.topRow}>
         <View style={styles.iconWrap}>
           <Ionicons name={iconName} size={28} color={colors.primary} />
@@ -50,11 +51,11 @@ export const MarketItemCard: React.FC<MarketItemCardProps> = ({
         <Text style={styles.owned}>{t('owned')}: {owned}</Text>
       </View>
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.buyBtn} onPress={onBuy}>
+        <TouchableOpacity style={[uiStyles.buttonSecondary, styles.buyBtn]} onPress={onBuy}>
           <Text style={styles.buyText}>{t('buy')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.useBtn, owned <= 0 && styles.disabled]}
+          style={[uiStyles.buttonPrimary, styles.useBtn, owned <= 0 && styles.disabled]}
           onPress={onUse}
           disabled={owned <= 0}
         >
@@ -66,14 +67,7 @@ export const MarketItemCard: React.FC<MarketItemCardProps> = ({
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
+  card: { marginBottom: 10 },
   topRow: { flexDirection: 'row', gap: 10 },
   iconWrap: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   costRow: { flexDirection: 'row', alignItems: 'center' },
@@ -85,19 +79,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   buyBtn: {
     flex: 1,
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
+    minHeight: 42,
+    borderColor: colors.accent,
   },
   useBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
+    minHeight: 42,
   },
-  buyText: { color: colors.white, fontWeight: '700' },
+  buyText: { color: colors.accent, fontWeight: '700' },
   useText: { color: colors.white, fontWeight: '700' },
   disabled: { opacity: 0.45 },
 });

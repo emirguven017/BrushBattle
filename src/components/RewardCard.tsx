@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { colors, ui } from '../utils/colors';
+import { uiStyles } from '../utils/uiStyles';
 import { useLanguage } from '../context/LanguageContext';
 
 const BADGE_ICONS = ['trophy', 'medal', 'medal'] as const;
@@ -20,7 +21,7 @@ export const RewardCard: React.FC<RewardCardProps> = ({ rank }) => {
   } as const;
   const rw = rewardByRank[rank];
   return (
-    <View style={styles.card}>
+    <View style={[uiStyles.card, styles.card]}>
       <Text style={styles.title}>{rw.title}</Text>
       <View style={styles.row}>
         <Ionicons name="diamond" size={14} color={colors.primary} />
@@ -40,11 +41,6 @@ export const RewardCard: React.FC<RewardCardProps> = ({ rank }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: 12,
-    padding: 12,
     marginBottom: 8,
   },
   title: { fontSize: 14, fontWeight: '800', color: colors.text, marginBottom: 6 },

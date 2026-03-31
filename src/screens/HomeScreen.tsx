@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { colors } from '../utils/colors';
+import { colors, ui } from '../utils/colors';
+import { uiStyles } from '../utils/uiStyles';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
 import { NotificationService } from '../services/NotificationService';
+import { AppFeedbackModal } from '../components/AppFeedbackModal';
 import { InventoryService } from '../services/inventoryService';
 import { LeaderboardService } from '../services/LeaderboardService';
-import { StreakCard, WeeklySummaryCard } from '../components';
+import { WeeklySummaryCard } from '../components';
 import type { BrushSession, SessionType } from '../types';
 
 const minutesSinceScheduled = (timeStr: string): number => {
@@ -42,6 +44,13 @@ export const HomeScreen: React.FC = () => {
   const [weeklyRank, setWeeklyRank] = useState<number | undefined>(undefined);
   const [championName, setChampionName] = useState<string | undefined>(undefined);
   const [lateBrushModal, setLateBrushModal] = useState<SessionType | null>(null);
+  const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
+  const plannedSessionTypes: SessionType[] = useMemo(() => {
+    const count = Math.min(3, Math.max(1, Number(user?.dailySessionCount ?? 2)));
+    if (count === 1) return ['morning'];
+    if (count === 2) return ['morning', 'evening'];
+    return ['morning', 'midday', 'evening'];
+  }, [user?.dailySessionCount]);
 
   const load = async () => {
     if (!user) return;
@@ -78,10 +87,16 @@ export const HomeScreen: React.FC = () => {
       }) => void;
     }).setOptions({
       headerRight: () => (
-        <View style={styles.headerBrRow}>
-          <Ionicons name="diamond" size={14} color="#000000" />
-          <Text style={styles.headerBrText}>{brScore}</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.headerBrBtn}
+          activeOpacity={0.85}
+          onPress={() => (nav as { navigate: (name: string) => void }).navigate('BRMarket')}
+        >
+          <View style={styles.headerBrRow}>
+            <Ionicons name="diamond" size={13} color={colors.primary} />
+            <Text style={styles.headerBrText}>{brScore}</Text>
+          </View>
+        </TouchableOpacity>
       )
     });
   }, [nav, brScore]);
@@ -92,14 +107,23 @@ export const HomeScreen: React.FC = () => {
     setRefreshing(false);
   };
 
-  const getSession = (type: SessionType) =>
-    sessions.find(s => s.sessionType === type);
-  const morning = getSession('morning');
-  const evening = getSession('evening');
+  /** Gün + kullanıcıya göre sabit; her render'da metin zıplamaz */
+  const motivationMessage = useMemo(() => {
+    const dayKey = new Date().toDateString();
+    let seed = 0;
+    for (let i = 0; i < dayKey.length; i += 1) seed += dayKey.charCodeAt(i);
+    if (user?.id) for (let i = 0; i < user.id.length; i += 1) seed += user.id.charCodeAt(i);
+    const idx = Math.abs(seed) % MOTIVATION_KEYS.length;
+    return t(MOTIVATION_KEYS[idx]);
+  }, [t, user?.id]);
+
+  const getSession = (type: SessionType) => sessions.find(s => s.sessionType === type);
   const getSessionTime = (session: BrushSession | undefined, sessionType: SessionType): string =>
     session?.scheduledTime ?? (
       sessionType === 'morning'
         ? (user?.morningTime ?? '08:00')
+        : sessionType === 'midday'
+          ? (user?.middayTime ?? '14:00')
         : (user?.eveningTime ?? '21:00')
     );
 
@@ -111,6 +135,8 @@ export const HomeScreen: React.FC = () => {
     const scheduledTime = session?.scheduledTime ?? (
       sessionType === 'morning'
         ? (user?.morningTime ?? '08:00')
+        : sessionType === 'midday'
+          ? (user?.middayTime ?? '14:00')
         : (user?.eveningTime ?? '21:00')
     );
     const mins = minutesSinceScheduled(scheduledTime);
@@ -148,10 +174,10 @@ export const HomeScreen: React.FC = () => {
     }
   };
 
-  const completedCount = [morning, evening].filter(
-    s => s?.status === 'completed'
+  const completedCount = plannedSessionTypes.filter(
+    (type) => getSession(type)?.status === 'completed'
   ).length;
-  const progressPercent = Math.round((completedCount / 2) * 100);
+  const progressPercent = Math.round((completedCount / plannedSessionTypes.length) * 100);
 
   const doStartBrushing = async (sessionType: SessionType) => {
     if (!user) return;
@@ -165,7 +191,15 @@ export const HomeScreen: React.FC = () => {
     } catch (e) {
       const code = (e as { code?: string })?.code;
       if (code === 'TOO_EARLY_TO_START') {
-        Alert.alert(t('notYet'), t('canStartOnlyOneHourBefore'));
+        setFeedbackModal({
+          title: t('notYet'),
+          message: t('canStartOnlyOneHourBefore'),
+        });
+      } else {
+        setFeedbackModal({
+          title: t('error'),
+          message: t('somethingWrong'),
+        });
       }
       load();
     }
@@ -197,13 +231,14 @@ export const HomeScreen: React.FC = () => {
     return t('goodEvening');
   })();
   const displayName = user?.username || t('defaultUserName');
-  const morningStatus = getEffectiveStatus(morning, 'morning');
-  const eveningStatus = getEffectiveStatus(evening, 'evening');
-  const morningChip = timeChipColors(morningStatus);
-  const eveningChip = timeChipColors(eveningStatus);
+  const getSessionTitle = (sessionType: SessionType) => {
+    if (sessionType === 'morning') return t('morningTask');
+    if (sessionType === 'midday') return t('middayTask');
+    return t('eveningTask');
+  };
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, uiStyles.screen]}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -211,96 +246,13 @@ export const HomeScreen: React.FC = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.greeting}>{greeting},</Text>
-        <View style={styles.userNameRow}>
-          <Text style={styles.userName}>{displayName}!</Text>
-          <Ionicons name="hand-left" size={20} color={colors.text} style={{ marginLeft: 4 }} />
-        </View>
+      <View style={[uiStyles.card, styles.header]}>
+        <Text style={styles.greeting}>{greeting}</Text>
+        <Text style={styles.userName}>{displayName}</Text>
         <Text style={styles.tagline}>{t('todayQuestion')}</Text>
       </View>
 
-      <StreakCard
-        streak={user?.streak ?? 0}
-        points={
-          weeklyRankings.find((r) => r.userId === user?.id)?.points ??
-          user?.points ??
-          0
-        }
-        rank={weeklyRank}
-      />
-
-      <Text style={styles.sectionTitle}>{t('todayTasks')}</Text>
-
-      <View style={[styles.taskCard, morningStatus === 'completed' && styles.taskCardCompleted]}>
-        <View style={[
-          styles.taskStatusChip,
-          { backgroundColor: morningStatus === 'completed' || morningStatus === 'due' ? colors.successLight : morningStatus === 'missed' ? colors.errorLight : colors.accentLight }
-        ]}>
-          <View style={styles.taskStatusRow}>
-            <Ionicons
-              name={morningStatus === 'completed' || morningStatus === 'due' ? 'checkmark-circle' : morningStatus === 'missed' ? 'close-circle' : 'time'}
-              size={16}
-              color={morningStatus === 'completed' ? colors.success : morningStatus === 'missed' ? colors.error : morningStatus === 'due' ? colors.success : colors.accent}
-            />
-            <Text style={styles.taskStatusText}>
-              {morningStatus === 'completed' ? t('statusCompleted') : morningStatus === 'missed' ? t('statusMissed') : morningStatus === 'due' ? t('statusDue') : t('statusPending')}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.taskHeaderRow}>
-          <Text style={styles.taskTitle}>{t('morningTask')}</Text>
-          <View style={[styles.taskTimeChip, { backgroundColor: morningChip.bg, borderColor: morningChip.border }]}>
-            <Ionicons name="time-outline" size={12} color={morningChip.fg} />
-            <Text style={[styles.taskTimeText, { color: morningChip.fg }]}>{getSessionTime(morning, 'morning')}</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={[styles.taskBtn, morningStatus === 'completed' && styles.taskBtnSecondary]}
-          onPress={() => handleStartBrushing('morning')}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.taskBtnText, morningStatus === 'completed' && styles.taskBtnTextSecondary]}>
-            {morningStatus === 'completed' ? t('repeatBrushing') : morningStatus === 'missed' ? t('brushAnyway') : t('startBrushing')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.taskCard, eveningStatus === 'completed' && styles.taskCardCompleted]}>
-        <View style={[
-          styles.taskStatusChip,
-          { backgroundColor: eveningStatus === 'completed' || eveningStatus === 'due' ? colors.successLight : eveningStatus === 'missed' ? colors.errorLight : colors.accentLight }
-        ]}>
-          <View style={styles.taskStatusRow}>
-            <Ionicons
-              name={eveningStatus === 'completed' || eveningStatus === 'due' ? 'checkmark-circle' : eveningStatus === 'missed' ? 'close-circle' : 'time'}
-              size={16}
-              color={eveningStatus === 'completed' ? colors.success : eveningStatus === 'missed' ? colors.error : eveningStatus === 'due' ? colors.success : colors.accent}
-            />
-            <Text style={styles.taskStatusText}>
-              {eveningStatus === 'completed' ? t('statusCompleted') : eveningStatus === 'missed' ? t('statusMissed') : eveningStatus === 'due' ? t('statusDue') : t('statusPending')}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.taskHeaderRow}>
-          <Text style={styles.taskTitle}>{t('eveningTask')}</Text>
-          <View style={[styles.taskTimeChip, { backgroundColor: eveningChip.bg, borderColor: eveningChip.border }]}>
-            <Ionicons name="time-outline" size={12} color={eveningChip.fg} />
-            <Text style={[styles.taskTimeText, { color: eveningChip.fg }]}>{getSessionTime(evening, 'evening')}</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={[styles.taskBtn, eveningStatus === 'completed' && styles.taskBtnSecondary]}
-          onPress={() => handleStartBrushing('evening')}
-          activeOpacity={0.85}
-        >
-          <Text style={[styles.taskBtnText, eveningStatus === 'completed' && styles.taskBtnTextSecondary]}>
-            {eveningStatus === 'completed' ? t('repeatBrushing') : eveningStatus === 'missed' ? t('brushAnyway') : t('startBrushing')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.progressCard}>
+      <View style={[uiStyles.card, styles.progressCard]}>
         <Text style={styles.progressLabel}>{t('dailyProgress')}</Text>
         <View style={styles.progressBar}>
           <View
@@ -308,20 +260,46 @@ export const HomeScreen: React.FC = () => {
           />
         </View>
         <Text style={styles.progressText}>
-          {completedCount}/2 {t('progressCompleted')} ({progressPercent}%)
+          {completedCount}/{plannedSessionTypes.length} {t('progressCompleted')} ({progressPercent}%)
         </Text>
       </View>
 
-      <View style={styles.motivationCard}>
-        <Ionicons name="bulb" size={24} color={colors.primary} />
-        <Text style={styles.motivationText}>
-          {t(MOTIVATION_KEYS[Math.floor(Math.random() * MOTIVATION_KEYS.length)])}
-        </Text>
-      </View>
+      <Text style={[uiStyles.sectionTitle, styles.sectionTitle]}>{t('todayTasks')}</Text>
+
+      {plannedSessionTypes.map((sessionType) => {
+        const session = getSession(sessionType);
+        const status = getEffectiveStatus(session, sessionType);
+        const chip = timeChipColors(status);
+        return (
+          <View key={sessionType} style={[styles.taskCard, status === 'completed' && styles.taskCardCompleted]}>
+            <View style={styles.taskHeaderRow}>
+              <Text style={styles.taskTitle}>{getSessionTitle(sessionType)}</Text>
+              <View style={[styles.taskTimeChip, { backgroundColor: chip.bg, borderColor: chip.border }]}>
+                <Ionicons name="time-outline" size={12} color={chip.fg} />
+                <Text style={[styles.taskTimeText, { color: chip.fg }]}>{getSessionTime(session, sessionType)}</Text>
+              </View>
+            </View>
+            <Text style={styles.taskStatusInline}>
+              {status === 'completed' ? t('statusCompleted') : status === 'missed' ? t('statusMissed') : status === 'due' ? t('statusDue') : t('statusPending')}
+            </Text>
+            <TouchableOpacity
+              style={[styles.taskBtn, status === 'completed' && styles.taskBtnSecondary]}
+              onPress={() => handleStartBrushing(sessionType)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.taskBtnText, status === 'completed' && styles.taskBtnTextSecondary]}>
+                {status === 'completed' ? t('repeatBrushing') : status === 'missed' ? t('brushAnyway') : t('startBrushing')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        );
+      })}
+
+      <Text style={styles.motivationText}>{motivationMessage}</Text>
 
       {weeklyRankings.length > 0 && (
         <TouchableOpacity
-          style={styles.leaderboardPreview}
+          style={[uiStyles.card, styles.leaderboardPreview]}
           onPress={() => (nav as { navigate: (n: string) => void }).navigate('Leaderboard')}
           activeOpacity={0.8}
         >
@@ -337,20 +315,24 @@ export const HomeScreen: React.FC = () => {
               <Text style={[styles.previewRow, r.userId === user?.id && styles.previewRowYou]} numberOfLines={1}>
                 {r.userId === user?.id ? t('you') : r.username}
               </Text>
-              <Text style={styles.previewPoints}>{r.points} pts</Text>
+              <Text style={styles.previewPoints}>
+                {r.points} {t('leaderboardPointsUnit')}
+              </Text>
             </View>
           ))}
         </TouchableOpacity>
       )}
 
-      <View style={styles.weeklySection}>
-        <WeeklySummaryCard
-          myRank={weeklyRank}
-          championName={championName}
-          weeklyRankings={weeklyRankings}
-          currentUserId={user?.id}
-        />
-      </View>
+      {weeklyRankings.length > 0 ? (
+        <View style={styles.weeklySection}>
+          <WeeklySummaryCard
+            myRank={weeklyRank}
+            championName={championName}
+            weeklyRankings={weeklyRankings}
+            currentUserId={user?.id}
+          />
+        </View>
+      ) : null}
     </ScrollView>
 
     <Modal visible={lateBrushModal !== null} transparent animationType="fade" onRequestClose={handleLateBrushCancel}>
@@ -377,62 +359,66 @@ export const HomeScreen: React.FC = () => {
         </View>
       </View>
     </Modal>
+
+    <AppFeedbackModal
+      visible={feedbackModal !== null}
+      title={feedbackModal?.title ?? ''}
+      message={feedbackModal?.message ?? ''}
+      buttonText={t('ok') || 'OK'}
+      onClose={() => setFeedbackModal(null)}
+    />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
+  wrapper: { flex: 1 },
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 20, paddingBottom: 50, flexGrow: 1 },
+  content: { padding: ui.screenPadding, paddingBottom: 40, flexGrow: 1 },
   header: {
-    marginBottom: 24,
-    paddingBottom: 16
+    marginBottom: 10,
+    paddingVertical: 12,
   },
   headerBrRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    paddingRight: 10
+  },
+  headerBrBtn: {
+    marginRight: 8,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: ui.borderWidth,
+    borderColor: 'rgba(255,255,255,1)',
   },
   headerBrText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '700'
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '800'
   },
   greeting: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: colors.muted,
-    marginBottom: 2
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center'
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   userName: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
     color: colors.text,
-    letterSpacing: -0.5
+    letterSpacing: -0.4
   },
   tagline: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.muted,
-    marginTop: 4
+    marginTop: 6
   },
   progressCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: colors.cardBorder
+    marginBottom: 8,
   },
   progressLabel: { fontSize: 14, fontWeight: '600', color: colors.muted, marginBottom: 8 },
   progressBar: {
@@ -447,73 +433,39 @@ const styles = StyleSheet.create({
     borderRadius: 5
   },
   progressText: { fontSize: 12, color: colors.muted, marginTop: 6 },
-  motivationCard: {
-    backgroundColor: colors.successLight,
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 24,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12
-  },
-  taskStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6
-  },
-  motivationIcon: {
-    fontSize: 24
-  },
   motivationText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    lineHeight: 22
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.muted,
+    lineHeight: 18,
+    marginBottom: 12
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 20,
-    marginBottom: 12
+    marginTop: 8,
+    marginBottom: 8
   },
   taskCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: ui.radiusLg,
+    padding: ui.cardPadding,
+    marginBottom: 10,
     flexShrink: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
-    borderWidth: 1,
+    borderWidth: ui.borderWidth,
     borderColor: colors.cardBorder
   },
   taskCardCompleted: {
     borderColor: colors.success,
     backgroundColor: colors.successLight
   },
-  taskStatusChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 12
-  },
-  taskStatusText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text
-  },
   taskTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text
+  },
+  taskStatusInline: {
+    fontSize: 12,
+    color: colors.muted,
+    marginBottom: 8,
   },
   taskHeaderRow: {
     flexDirection: 'row',
@@ -537,12 +489,12 @@ const styles = StyleSheet.create({
   },
   taskBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: 18,
+    borderRadius: ui.radiusMd,
+    minHeight: ui.buttonHeight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    minHeight: 56
+    marginTop: 2,
+    paddingHorizontal: 14,
   },
   taskBtnSecondary: {
     backgroundColor: 'transparent',
@@ -551,23 +503,17 @@ const styles = StyleSheet.create({
   },
   taskBtnText: {
     color: colors.white,
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '700'
   },
   taskBtnTextSecondary: {
     color: colors.primary
   },
   leaderboardPreview: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4,
-    borderWidth: 1,
+    borderRadius: ui.radiusLg,
+    padding: ui.cardPadding,
+    marginTop: 8,
+    borderWidth: ui.borderWidth,
     borderColor: colors.cardBorder
   },
   previewHeader: {
@@ -600,7 +546,7 @@ const styles = StyleSheet.create({
   previewRowYou: { color: colors.primary },
   previewPoints: { fontSize: 14, fontWeight: '700', color: colors.primary },
   weeklySection: {
-    marginTop: 24,
+    marginTop: 8,
     marginBottom: 8,
   },
   modalBackdrop: {
@@ -660,5 +606,5 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: '700'
-  }
+  },
 });

@@ -15,6 +15,7 @@ interface IntroContextType {
   dismissIntroOverlay: () => void;
   markIntroComplete: () => Promise<void>;
   markNewUserIntroComplete: (userId: string) => Promise<void>;
+  clearNewUserIntroOnLogout: () => void;
 }
 
 const IntroContext = createContext<IntroContextType | null>(null);
@@ -67,6 +68,10 @@ export const IntroProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setHasSeenIntroForNewUser(true);
   }, []);
 
+  const clearNewUserIntroOnLogout = useCallback(() => {
+    setHasSeenIntroForNewUser(null);
+  }, []);
+
   React.useEffect(() => {
     refreshIntroStatus();
   }, [refreshIntroStatus]);
@@ -83,7 +88,8 @@ export const IntroProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         requestShowIntroAgain,
         dismissIntroOverlay,
         markIntroComplete,
-        markNewUserIntroComplete
+        markNewUserIntroComplete,
+        clearNewUserIntroOnLogout
       }}
     >
       {children}

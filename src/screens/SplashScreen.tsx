@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, headerTitle } from '../utils/colors';
+import { colors } from '../utils/colors';
 import { useLanguage } from '../context/LanguageContext';
+import { AppBranding } from '../components/AppBranding';
 
 export const SplashScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -11,8 +12,12 @@ export const SplashScreen: React.FC = () => {
   <View style={[styles.container, { backgroundColor: colors.primary }]}>
     <View style={{ paddingTop: insets.top }} />
     <View style={styles.titleBar}>
-      <Text style={styles.title}>{t('appName')}</Text>
-      <Text style={styles.subtitle}>{t('splashSubtitle')}</Text>
+      <AppBranding
+        title={t('appName')}
+        subtitle={t('splashSubtitle')}
+        tone="onBrand"
+        logoSize={112}
+      />
     </View>
     <ActivityIndicator size="large" color={colors.white} style={styles.spinner} />
   </View>
@@ -27,20 +32,11 @@ const styles = StyleSheet.create({
   },
   titleBar: {
     backgroundColor: colors.primary,
-    paddingVertical: 24,
-    paddingHorizontal: 40,
+    paddingVertical: 20,
+    paddingHorizontal: 32,
     borderRadius: 20,
     alignItems: 'center',
     marginBottom: 32
-  },
-  title: {
-    ...headerTitle
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.white,
-    opacity: 0.9,
-    marginTop: 6
   },
   spinner: {}
 });

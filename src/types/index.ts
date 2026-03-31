@@ -1,4 +1,4 @@
-export type SessionType = 'morning' | 'evening';
+export type SessionType = 'morning' | 'midday' | 'evening';
 export type SessionStatus = 'pending' | 'completed' | 'missed';
 
 export interface User {
@@ -11,7 +11,10 @@ export interface User {
   /** Pozitif streak kırıldıktan sonra ceza (-1,-2,-3) zinciri için */
   streakPenaltyMode?: boolean;
   morningTime: string;
+  middayTime?: string;
   eveningTime: string;
+  /** Kullanıcının günlük planladığı seans adedi (1-3). Puan hesabında kullanılır. */
+  dailySessionCount?: 1 | 2 | 3;
   onboardingComplete?: boolean;
 }
 

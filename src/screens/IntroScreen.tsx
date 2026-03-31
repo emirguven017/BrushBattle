@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -11,22 +12,28 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, headerTitle } from '../utils/colors';
+import { colors } from '../utils/colors';
+import { AppBranding } from '../components/AppBranding';
 import { useLanguage } from '../context/LanguageContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-interface IntroSlide {
-  icon: keyof typeof Ionicons.glyphMap;
-  titleKey: string;
-  descKey: string;
-}
+const APP_LOGO = require('../../assets/images/app-logo.png');
+
+type IntroSlide =
+  | { kind: 'logo'; titleKey: string; descKey: string }
+  | {
+      kind: 'ion';
+      icon: keyof typeof Ionicons.glyphMap;
+      titleKey: string;
+      descKey: string;
+    };
 
 const SLIDES: IntroSlide[] = [
-  { icon: 'brush', titleKey: 'introSlide1Title', descKey: 'introSlide1Desc' },
-  { icon: 'calendar', titleKey: 'introSlide2Title', descKey: 'introSlide2Desc' },
-  { icon: 'people', titleKey: 'introSlide3Title', descKey: 'introSlide3Desc' },
-  { icon: 'cart', titleKey: 'introSlide4Title', descKey: 'introSlide4Desc' }
+  { kind: 'logo', titleKey: 'introSlide1Title', descKey: 'introSlide1Desc' },
+  { kind: 'ion', icon: 'calendar', titleKey: 'introSlide2Title', descKey: 'introSlide2Desc' },
+  { kind: 'ion', icon: 'people', titleKey: 'introSlide3Title', descKey: 'introSlide3Desc' },
+  { kind: 'ion', icon: 'cart', titleKey: 'introSlide4Title', descKey: 'introSlide4Desc' }
 ];
 
 interface IntroScreenProps {
@@ -60,7 +67,15 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onComplete }) => {
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
-        <Text style={styles.headerTitle}>{t('appName')}</Text>
+        <View style={styles.headerCenter}>
+          <AppBranding
+            title={t('appName')}
+            tone="onLight"
+            logoSize={50}
+            compact
+            titleStyle={{ fontSize: 17, marginTop: 6, fontWeight: '800' }}
+          />
+        </View>
         <TouchableOpacity
           style={styles.langBtn}
           onPress={() => setLanguage(language === 'tr' ? 'en' : 'tr')}
@@ -87,7 +102,11 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onComplete }) => {
         {SLIDES.map((slide, i) => (
           <View key={i} style={[styles.slide, { width: SCREEN_WIDTH }]}>
             <View style={styles.emojiWrap}>
-              <Ionicons name={slide.icon} size={56} color={colors.primary} />
+              {slide.kind === 'logo' ? (
+                <Image source={APP_LOGO} style={styles.slideLogo} resizeMode="contain" />
+              ) : (
+                <Ionicons name={slide.icon} size={56} color={colors.primary} />
+              )}
             </View>
             <Text style={styles.title}>{t(slide.titleKey)}</Text>
             <Text style={styles.desc}>{t(slide.descKey)}</Text>
@@ -123,19 +142,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 20
   },
   headerSpacer: {
     width: 44
   },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  headerTitle: {
-    ...headerTitle,
-    color: colors.primary
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8
   },
   langBtn: {
     paddingHorizontal: 14,
@@ -155,31 +172,35 @@ const styles = StyleSheet.create({
   },
   slide: {
     flex: 1,
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
     justifyContent: 'center',
     alignItems: 'center'
   },
   emojiWrap: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24
+    marginBottom: 18
+  },
+  slideLogo: {
+    width: 62,
+    height: 62,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     color: colors.text,
     textAlign: 'center',
     marginBottom: 12
   },
   desc: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.muted,
     textAlign: 'center',
-    lineHeight: 24
+    lineHeight: 22
   },
   footer: {
     paddingHorizontal: 24,
