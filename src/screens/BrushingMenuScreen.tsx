@@ -172,7 +172,7 @@ export const BrushingMenuScreen: React.FC = () => {
             {weekProgress.map((v, i) => (
               <View key={`${weekdayLabels[i] ?? i}`} style={styles.barCol}>
                 <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { height: `${Math.max(8, v)}%` }]} />
+                  <View style={[styles.barFill, { height: v === 0 ? '0%' : `${Math.max(8, v)}%` }]} />
                 </View>
                 <Text style={styles.barLabel}>{weekdayLabels[i] ?? ''}</Text>
               </View>
