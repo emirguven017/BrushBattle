@@ -1,7 +1,8 @@
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SessionType, User } from '../types';
-import { todayKey } from '../utils/date';
+import { dateKey, todayKey } from '../utils/date';
 import { translations, type Language } from '../i18n/translations';
 
 function t(key: string, lang: Language): string {
@@ -25,6 +26,27 @@ const TOOTHBRUSH_REMINDER_ID_KEY = (scope: string) => `toothbrush_replace_remind
 const TOOTHBRUSH_ENABLED_KEY = (scope: string) => `toothbrush_replace_enabled_${scope}`;
 const TOOTHBRUSH_INTERVAL_KEY = (scope: string) => `toothbrush_replace_interval_${scope}`;
 const TOOTHBRUSH_NEXT_DUE_KEY = (scope: string) => `toothbrush_replace_next_due_${scope}`;
+const TOOTHBRUSH_LAST_CHANGE_KEY = (scope: string) => `toothbrush_last_change_date_${scope}`;
+
+function parseDateKeyLocal(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addCalendarDaysToDateKey(key: string, delta: number): string {
+  const dt = parseDateKeyLocal(key);
+  dt.setDate(dt.getDate() + delta);
+  return dateKey(dt);
+}
+
+/** earlier <= later; tam takvim günü farkı */
+function calendarDaysBetween(earlier: string, later: string): number {
+  const d1 = parseDateKeyLocal(earlier);
+  d1.setHours(0, 0, 0, 0);
+  const d2 = parseDateKeyLocal(later);
+  d2.setHours(0, 0, 0, 0);
+  return Math.round((d2.getTime() - d1.getTime()) / (24 * 60 * 60 * 1000));
+}
 const SESSION_TYPES: SessionType[] = ['morning', 'midday', 'evening'];
 
 const getPlannedSessionTypesForUser = (user: User): SessionType[] => {
@@ -169,26 +191,50 @@ export const NotificationService = {
     enabled: boolean;
     intervalDays: 30 | 45 | 60;
     daysLeft: number | null;
+    /** Son fırça değişim günü (YYYY-MM-DD); hatırlatma kapalıysa null */
+    lastChangeDateKey: string | null;
+    /** Planlanan bir sonraki değişim günü (YYYY-MM-DD); hatırlatma kapalıysa null */
+    nextDueDateKey: string | null;
   }> {
     const scope = this.getToothbrushReminderScope(userId);
     const settings = await this.getToothbrushReminderSettings(userId);
     if (!settings.enabled) {
-      return { enabled: false, intervalDays: settings.intervalDays, daysLeft: null };
+      return {
+        enabled: false,
+        intervalDays: settings.intervalDays,
+        daysLeft: null,
+        lastChangeDateKey: null,
+        nextDueDateKey: null,
+      };
     }
-    const nextDueRaw = await AsyncStorage.getItem(TOOTHBRUSH_NEXT_DUE_KEY(scope));
-    if (!nextDueRaw) {
-      // Eski kullanıcılarda referans tarih yoksa, interval'i başlangıç kabul et.
-      return { enabled: true, intervalDays: settings.intervalDays, daysLeft: settings.intervalDays };
+
+    let lastChange = await AsyncStorage.getItem(TOOTHBRUSH_LAST_CHANGE_KEY(scope));
+    if (!lastChange) {
+      const nextDueRaw = await AsyncStorage.getItem(TOOTHBRUSH_NEXT_DUE_KEY(scope));
+      if (nextDueRaw) {
+        const nextDueMs = Number(nextDueRaw);
+        if (Number.isFinite(nextDueMs)) {
+          const dueDay = dateKey(new Date(nextDueMs));
+          lastChange = addCalendarDaysToDateKey(dueDay, -settings.intervalDays);
+          await AsyncStorage.setItem(TOOTHBRUSH_LAST_CHANGE_KEY(scope), lastChange);
+        }
+      }
     }
-    const nextDueMs = Number(nextDueRaw);
-    if (!Number.isFinite(nextDueMs)) {
-      return { enabled: true, intervalDays: settings.intervalDays, daysLeft: settings.intervalDays };
+    if (!lastChange) {
+      lastChange = todayKey();
+      await AsyncStorage.setItem(TOOTHBRUSH_LAST_CHANGE_KEY(scope), lastChange);
     }
-    const diff = Math.ceil((nextDueMs - Date.now()) / (24 * 60 * 60 * 1000));
+
+    const elapsed = calendarDaysBetween(lastChange, todayKey());
+    const daysLeft = Math.max(0, settings.intervalDays - elapsed);
+    const nextDueDateKey = addCalendarDaysToDateKey(lastChange, settings.intervalDays);
+
     return {
       enabled: true,
       intervalDays: settings.intervalDays,
-      daysLeft: Math.max(0, diff),
+      daysLeft,
+      lastChangeDateKey: lastChange,
+      nextDueDateKey,
     };
   },
 
@@ -329,6 +375,8 @@ export const NotificationService = {
     intervalDays?: number;
     hour?: number;
     minute?: number;
+    /** Doğrudan son değişim tarihi (YYYY-MM-DD); verilirse replaceDaysAgo/dontKnow yok sayılır */
+    lastChangeDateKey?: string;
   }): Promise<void> {
     const pref = await this.getToothbrushReminderSettings(args.userId);
     const intervalDays = (args.intervalDays ?? pref.intervalDays) as 30 | 45 | 60;
@@ -345,22 +393,35 @@ export const NotificationService = {
     const scope = this.getToothbrushReminderScope(args.userId);
     const key = TOOTHBRUSH_REMINDER_ID_KEY(scope);
     await this.cancelToothbrushReplacementReminder(args.userId);
-    const daysAgo = args.dontKnow ? 45 : Math.max(0, args.replaceDaysAgo ?? 45);
-    const now = new Date();
-    const base = new Date(now);
-    base.setDate(base.getDate() - daysAgo);
 
-    let next = new Date(base);
-    next.setDate(next.getDate() + intervalDays);
-    next.setHours(args.hour ?? 20, args.minute ?? 0, 0, 0);
-    while (next.getTime() <= now.getTime()) {
-      next = new Date(next.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+    const hour = args.hour ?? 20;
+    const minute = args.minute ?? 0;
+
+    let lastChangeKey: string;
+    if (args.lastChangeDateKey) {
+      lastChangeKey = args.lastChangeDateKey;
+    } else if (args.dontKnow) {
+      lastChangeKey = todayKey();
+    } else if (args.replaceDaysAgo != null && Number.isFinite(args.replaceDaysAgo)) {
+      lastChangeKey = addCalendarDaysToDateKey(todayKey(), -Math.max(0, args.replaceDaysAgo));
+    } else {
+      lastChangeKey = todayKey();
     }
 
-    const secondsUntilDue = Math.max(
-      60,
-      Math.round((next.getTime() - now.getTime()) / 1000)
-    );
+    await AsyncStorage.setItem(TOOTHBRUSH_LAST_CHANGE_KEY(scope), lastChangeKey);
+
+    let nextDue = parseDateKeyLocal(lastChangeKey);
+    nextDue.setDate(nextDue.getDate() + intervalDays);
+    nextDue.setHours(hour, minute, 0, 0);
+
+    const now = new Date();
+    if (nextDue.getTime() <= now.getTime()) {
+      nextDue = new Date(now);
+      nextDue.setHours(hour, minute, 0, 0);
+      if (nextDue.getTime() <= now.getTime()) {
+        nextDue.setDate(nextDue.getDate() + 1);
+      }
+    }
 
     const id = await Notifications.scheduleNotificationAsync({
       content: {
@@ -372,16 +433,30 @@ export const NotificationService = {
         },
       },
       trigger: {
-        type: 'timeInterval',
-        seconds: secondsUntilDue,
-        repeats: true,
-      } as Notifications.NotificationTriggerInput,
+        type: SchedulableTriggerInputTypes.DATE,
+        date: nextDue,
+      },
     });
 
     await Promise.all([
       AsyncStorage.setItem(key, id),
-      AsyncStorage.setItem(TOOTHBRUSH_NEXT_DUE_KEY(scope), String(next.getTime())),
+      AsyncStorage.setItem(TOOTHBRUSH_NEXT_DUE_KEY(scope), String(nextDue.getTime())),
     ]);
+  },
+
+  /** Kullanıcı diş fırçasını değiştirdi: sayaç bugünden yeniden interval gün sayar */
+  async markToothbrushReplaced(userId?: string): Promise<void> {
+    const pref = await this.getToothbrushReminderSettings(userId);
+    if (!pref.enabled) return;
+    await this.scheduleToothbrushReplacementReminder({
+      userId,
+      replaceDaysAgo: null,
+      dontKnow: false,
+      lastChangeDateKey: todayKey(),
+      intervalDays: pref.intervalDays,
+      hour: 20,
+      minute: 0,
+    });
   },
 
   /** Bildirimler devre dışı - bildirim gönderilmez */

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, headerTitle } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
+import { useTabJump } from '../context/TabJumpContext';
 import { InventoryService } from '../services/inventoryService';
 import { GroupService } from '../services/GroupService';
 import { MarketService } from '../services/marketService';
@@ -46,6 +47,7 @@ export const UseFeatureScreen: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const navigation = useNavigation();
+  const tabJump = useTabJump();
   const route = useRoute();
   const initialTargetUserId = (route.params as { targetUserId?: string } | undefined)?.targetUserId;
 
@@ -242,12 +244,7 @@ export const UseFeatureScreen: React.FC = () => {
   };
 
   const goToMarket = () => {
-    const parentNav = navigation.getParent();
-    if (parentNav) {
-      (parentNav as { navigate: (name: string) => void }).navigate('BRMarket');
-      return;
-    }
-    (navigation as { navigate: (name: string) => void }).navigate('BRMarket');
+    tabJump?.jumpToTab('BRMarket');
   };
 
   const renderItemCard = (id: MarketItemId, quantity: number) => {

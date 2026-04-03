@@ -32,7 +32,10 @@ export const BrushingTimerScreen: React.FC = () => {
   const { t } = useLanguage();
   const nav = useNavigation();
   const route = useRoute();
-  const session = (route.params as { session?: BrushSession })?.session;
+  const routeParams = route.params as { session?: BrushSession; timerEntry?: 'home' | 'brush' } | undefined;
+  const session = routeParams?.session;
+  /** Hangi sekmeden açıldıysa goBack yoksa bu kök ekrana dönülür (stack bağımsız navigator) */
+  const timerEntry = routeParams?.timerEntry ?? 'home';
 
   const [seconds, setSeconds] = useState(TOTAL_DURATION_SEC);
   const [finished, setFinished] = useState(false);
@@ -151,7 +154,8 @@ export const BrushingTimerScreen: React.FC = () => {
     if (nav.canGoBack()) {
       nav.goBack();
     } else {
-      (nav as { navigate: (name: string) => void }).navigate('HomeMain');
+      const root = timerEntry === 'brush' ? 'BrushingMenuMain' : 'HomeMain';
+      (nav as { navigate: (name: string) => void }).navigate(root);
     }
   };
 

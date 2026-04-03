@@ -12,6 +12,10 @@ export interface DayData {
   morningCompleted?: boolean;
   eveningCompleted?: boolean;
   pointsEarned?: number;
+  /** Diş fırçası son değiştirildiği gün (takvimde mavi nokta) */
+  toothbrushLastChange?: boolean;
+  /** Planlanan bir sonraki fırça değişim günü (takvimde turuncu nokta) */
+  toothbrushNextDue?: boolean;
 }
 
 interface CalendarViewProps {
@@ -73,6 +77,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       <View style={styles.grid}>
         {cells.map((day, i) => {
           const isToday = day?.date === today;
+          const tbLast = day?.toothbrushLastChange;
+          const tbNext = day?.toothbrushNextDue;
+          const hasTb = !!(tbLast || tbNext);
           return (
             <TouchableOpacity
               key={i}
@@ -84,9 +91,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               onPress={() => day && onDayPress(day)}
               disabled={!day}
             >
-              <Text style={[styles.cellText, isToday && styles.todayCellText]}>
-                {day ? new Date(day.date).getDate() : ''}
-              </Text>
+              {day ? (
+                <View style={styles.cellInner}>
+                  <Text style={[styles.cellText, isToday && styles.todayCellText]}>
+                    {new Date(day.date + 'T12:00:00').getDate()}
+                  </Text>
+                  {hasTb ? (
+                    <View style={styles.tbMarkerRow}>
+                      {tbLast ? (
+                        <View style={[styles.tbMarkerDot, { backgroundColor: colors.accent }]} />
+                      ) : null}
+                      {tbNext ? (
+                        <View style={[styles.tbMarkerDot, { backgroundColor: colors.warning }]} />
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </TouchableOpacity>
           );
         })}
@@ -128,6 +149,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 8,
     marginBottom: 4
+  },
+  cellInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2
+  },
+  tbMarkerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    minHeight: 5
+  },
+  tbMarkerDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5
   },
   todayCell: {
     borderWidth: 2,

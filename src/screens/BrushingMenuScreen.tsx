@@ -118,7 +118,10 @@ export const BrushingMenuScreen: React.FC = () => {
     try {
       const session = await BrushingService.startSession(user, sessionType);
       await NotificationService.schedulePersistentReminders(user.id, sessionType);
-      (nav as { navigate: (name: string, params?: object) => void }).navigate('BrushingTimer', { session });
+      (nav as { navigate: (name: string, params?: object) => void }).navigate('BrushingTimer', {
+        session,
+        timerEntry: 'brush',
+      });
     } catch (e) {
       const code = (e as { code?: string })?.code;
       if (code === 'TOO_EARLY_TO_START') {
@@ -153,6 +156,16 @@ export const BrushingMenuScreen: React.FC = () => {
     const type = lateSessionType;
     setLateSessionType(null);
     startSessionDirect(type).catch(() => {});
+  };
+
+  const handleMarkToothbrushReplaced = async () => {
+    if (!user) return;
+    try {
+      await NotificationService.markToothbrushReplaced(user.id);
+      await load();
+    } catch {
+      setFeedbackModal({ title: t('error'), message: t('somethingWrong') });
+    }
   };
 
   const weekdayLabels = t('weekdaysShort').split(',').slice(0, 7);
@@ -222,6 +235,19 @@ export const BrushingMenuScreen: React.FC = () => {
                 ]}
               />
             </View>
+          ) : null}
+          {toothbrushCountdown?.enabled ? (
+            <>
+              <Text style={styles.countdownHint}>{t('toothbrushMarkReplacedHint')}</Text>
+              <TouchableOpacity
+                style={styles.countdownResetBtn}
+                onPress={handleMarkToothbrushReplaced}
+                activeOpacity={0.88}
+              >
+                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                <Text style={styles.countdownResetBtnText}>{t('toothbrushMarkReplaced')}</Text>
+              </TouchableOpacity>
+            </>
           ) : null}
         </View>
 
@@ -378,6 +404,31 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 999,
     backgroundColor: colors.primary,
+  },
+  countdownHint: {
+    marginTop: 10,
+    fontSize: 11,
+    color: colors.muted,
+    lineHeight: 15,
+  },
+  countdownResetBtn: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'stretch',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: ui.radiusMd,
+    borderWidth: ui.borderWidth,
+    borderColor: colors.primary + '40',
+    backgroundColor: colors.primary + '10',
+  },
+  countdownResetBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
   },
   chartWrap: {
     marginTop: 12,

@@ -14,6 +14,16 @@ const STROKE_WIDTH = 10;
 const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CENTER = SIZE / 2;
 
+const SHADOW_RING =
+  Platform.OS === 'ios'
+    ? {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      }
+    : { elevation: 8 };
+
 /** Circular countdown timer: beyaz gölgeli halka başlangıçta, vakit geçtikçe yeşil dolum */
 export const TimerCircle: React.FC<TimerCircleProps> = ({
   remaining,
@@ -75,19 +85,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shadowRing: {
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
+  shadowRing: SHADOW_RING,
   svg: {
     position: 'absolute',
   },

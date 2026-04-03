@@ -40,6 +40,7 @@ import {
 import { WelcomeWizardScreen } from './src/screens/WelcomeWizardScreen';
 import { LanguagePickFirstScreen } from './src/screens/LanguagePickFirstScreen';
 import { AppFeedbackModal } from './src/components/AppFeedbackModal';
+import { TabJumpContext, type AppTabKey } from './src/context/TabJumpContext';
 
 const Stack = createNativeStackNavigator();
 const PENDING_INVITE_KEY = '@brush_battle_pending_invite_code';
@@ -151,7 +152,10 @@ const AppTabs: React.FC = () => {
         render: () => <BrushingStack />,
         icon: (focused: boolean) => (
           <View style={[styles.brushFab, { borderColor: focused ? colors.primary : colors.cardBorder }]}>
-            <MaterialCommunityIcons name="toothbrush" size={32} color={colors.primary} />
+            {/* Yeşil dolgu + beyaz ikon: vektör rengi bazı cihazlarda uygulanmadığı için bu düzen her zaman okunur */}
+            <View style={styles.brushFabInner}>
+              <MaterialCommunityIcons name="toothbrush" size={32} color={colors.white} />
+            </View>
           </View>
         ),
       },
@@ -171,6 +175,14 @@ const AppTabs: React.FC = () => {
     setActiveIndex(index);
     translateX.value = withTiming(-index * width, { duration: 220 });
   }, [tabs.length, translateX, width]);
+
+  const jumpToTab = React.useCallback(
+    (key: AppTabKey) => {
+      const idx = tabs.findIndex((tab) => tab.key === key);
+      if (idx >= 0) jumpTo(idx);
+    },
+    [tabs, jumpTo]
+  );
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-12, 12])
@@ -195,6 +207,7 @@ const AppTabs: React.FC = () => {
   }));
 
   return (
+    <TabJumpContext.Provider value={{ jumpToTab }}>
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <GestureDetector gesture={panGesture}>
         <View style={{ flex: 1, overflow: 'hidden' }}>
@@ -246,6 +259,7 @@ const AppTabs: React.FC = () => {
         })}
       </View>
     </View>
+    </TabJumpContext.Provider>
   );
 };
 
@@ -531,19 +545,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   brushFab: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    marginTop: -22,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginTop: -46,
     backgroundColor: colors.white,
     borderWidth: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /** Beyaz dış halka + ortada dolu yeşil daire; ikon beyaz (kontrast garanti) */
+  brushFabInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   brushLabel: {
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 4,
+    marginTop: 0,
   },
 });
 

@@ -38,7 +38,12 @@ export const MarketService = {
     const item = getMarketItem(itemId);
     if (!item) throw new Error('Item bulunamadi.');
     await InventoryService.spendBrScore(userId, item.cost);
-    await InventoryService.addItem(userId, itemId, 1);
+    try {
+      await InventoryService.addItem(userId, itemId, 1);
+    } catch (e) {
+      await InventoryService.addBrScore(userId, item.cost);
+      throw e;
+    }
     await this.logTransaction({
       userId,
       itemId,

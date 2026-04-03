@@ -15,6 +15,7 @@ import { colors, ui } from '../utils/colors';
 import { uiStyles } from '../utils/uiStyles';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
+import { useTabJump } from '../context/TabJumpContext';
 import { BrushingService } from '../services/BrushingService';
 import { NotificationService } from '../services/NotificationService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
@@ -37,6 +38,7 @@ export const HomeScreen: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const nav = useNavigation();
+  const tabJump = useTabJump();
   const [sessions, setSessions] = useState<BrushSession[]>([]);
   const [weeklyRankings, setWeeklyRankings] = useState<{ userId: string; username: string; points: number }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,16 +92,16 @@ export const HomeScreen: React.FC = () => {
         <TouchableOpacity
           style={styles.headerBrBtn}
           activeOpacity={0.85}
-          onPress={() => (nav as { navigate: (name: string) => void }).navigate('BRMarket')}
+          onPress={() => tabJump?.jumpToTab('BRMarket')}
         >
           <View style={styles.headerBrRow}>
-            <Ionicons name="diamond" size={13} color={colors.primary} />
+            <Ionicons name="diamond" size={13} color={colors.text} />
             <Text style={styles.headerBrText}>{brScore}</Text>
           </View>
         </TouchableOpacity>
       )
     });
-  }, [nav, brScore]);
+  }, [nav, brScore, tabJump]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -184,10 +186,10 @@ export const HomeScreen: React.FC = () => {
     try {
       const session = await BrushingService.startSession(user, sessionType);
       await NotificationService.schedulePersistentReminders(user.id, sessionType);
-      (nav as { navigate: (n: string, p?: object) => void }).navigate(
-        'BrushingTimer',
-        { session }
-      );
+      (nav as { navigate: (n: string, p?: object) => void }).navigate('BrushingTimer', {
+        session,
+        timerEntry: 'home',
+      });
     } catch (e) {
       const code = (e as { code?: string })?.code;
       if (code === 'TOO_EARLY_TO_START') {
@@ -300,7 +302,7 @@ export const HomeScreen: React.FC = () => {
       {weeklyRankings.length > 0 && (
         <TouchableOpacity
           style={[uiStyles.card, styles.leaderboardPreview]}
-          onPress={() => (nav as { navigate: (n: string) => void }).navigate('Leaderboard')}
+          onPress={() => tabJump?.jumpToTab('Leaderboard')}
           activeOpacity={0.8}
         >
           <View style={styles.previewHeader}>
@@ -385,16 +387,12 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   headerBrBtn: {
-    marginRight: 8,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
+    marginRight: 4,
+    paddingHorizontal: 6,
     paddingVertical: 4,
-    borderWidth: ui.borderWidth,
-    borderColor: 'rgba(255,255,255,1)',
   },
   headerBrText: {
-    color: colors.primary,
+    color: colors.text,
     fontSize: 13,
     fontWeight: '800'
   },

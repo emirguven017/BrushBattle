@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, headerTitle, ui } from '../utils/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { BrushingService } from '../services/BrushingService';
+import { NotificationService } from '../services/NotificationService';
 import {
   CalendarView,
   type DayData,
@@ -28,11 +30,20 @@ export const HistoryScreen: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<DayData | null>(null);
   const plannedCount = Math.min(3, Math.max(1, Number(user?.dailySessionCount ?? 2)));
 
-  const loadMonth = async () => {
+  const loadMonth = useCallback(async () => {
     if (!user) return;
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth() + 1;
-    const sessions = await BrushingService.getSessionsForMonth(user.id, year, month);
+    const [sessions, tbCountdown] = await Promise.all([
+      BrushingService.getSessionsForMonth(user.id, year, month),
+      NotificationService.getToothbrushReplacementCountdown(user.id),
+    ]);
+    const lastTbKey =
+      tbCountdown.enabled && tbCountdown.lastChangeDateKey
+        ? tbCountdown.lastChangeDateKey
+        : null;
+    const nextTbKey =
+      tbCountdown.enabled && tbCountdown.nextDueDateKey ? tbCountdown.nextDueDateKey : null;
 
     const map: Record<string, DayData> = {};
     const lastDay = new Date(year, month, 0).getDate();
@@ -58,15 +69,19 @@ export const HistoryScreen: React.FC = () => {
         status,
         morningCompleted: morningDone,
         eveningCompleted: eveningDone,
-        pointsEarned: points
+        pointsEarned: points,
+        toothbrushLastChange: lastTbKey === key,
+        toothbrushNextDue: nextTbKey === key,
       };
     }
     setDays(map);
-  };
+  }, [user?.id, user?.dailySessionCount, currentMonth]);
 
-  useEffect(() => {
-    loadMonth();
-  }, [user?.id, user?.dailySessionCount, currentMonth.getFullYear(), currentMonth.getMonth()]);
+  useFocusEffect(
+    useCallback(() => {
+      loadMonth();
+    }, [loadMonth])
+  );
 
   const handleMonthChange = (delta: number) => {
     setCurrentMonth(
@@ -110,6 +125,14 @@ export const HistoryScreen: React.FC = () => {
         <View style={styles.legendRow}>
           <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
           <Text style={styles.legendText}>{t('legendMissed')}</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
+          <Text style={styles.legendText}>{t('legendToothbrushLastChange')}</Text>
+        </View>
+        <View style={styles.legendRow}>
+          <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
+          <Text style={styles.legendText}>{t('legendToothbrushNextDue')}</Text>
         </View>
       </View>
       </View>
@@ -187,6 +210,33 @@ export const HistoryScreen: React.FC = () => {
                     <Text style={styles.taskItemMuted}>{t('none')}</Text>
                   )}
                 </View>
+                {(selectedDay.toothbrushLastChange || selectedDay.toothbrushNextDue) && (
+                  <View style={styles.section}>
+                    {selectedDay.toothbrushLastChange ? (
+                      <>
+                        <View style={styles.sectionTitleRow}>
+                          <MaterialCommunityIcons
+                            name="toothbrush"
+                            size={18}
+                            color={colors.accent}
+                            accessibilityLabel={t('legendToothbrushLastChange')}
+                          />
+                          <Text style={styles.sectionTitle}> {t('legendToothbrushLastChange')}</Text>
+                        </View>
+                        <Text style={styles.taskItem}>{t('calendarToothbrushLastLine')}</Text>
+                      </>
+                    ) : null}
+                    {selectedDay.toothbrushNextDue ? (
+                      <>
+                        <View style={[styles.sectionTitleRow, selectedDay.toothbrushLastChange && { marginTop: 12 }]}>
+                          <Ionicons name="calendar" size={16} color={colors.warning} />
+                          <Text style={styles.sectionTitle}> {t('legendToothbrushNextDue')}</Text>
+                        </View>
+                        <Text style={styles.taskItem}>{t('calendarToothbrushNextLine')}</Text>
+                      </>
+                    ) : null}
+                  </View>
+                )}
                 <View style={styles.pointsRow}>
                   <Ionicons name="star" size={18} color={colors.primary} />
                   <Text style={styles.pointsRowText}> {t('totalPoints')}: {selectedDay.pointsEarned ?? 0}</Text>
