@@ -7,7 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Modal,
-  Alert
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -33,6 +33,9 @@ const minutesSinceScheduled = (timeStr: string): number => {
 };
 
 const MOTIVATION_KEYS = ['keepStreak', 'oneLeft', 'friendAhead'];
+
+const IOS_GROUPED_BG = '#F2F2F7';
+const IOS_SEPARATOR = 'rgba(60, 60, 67, 0.29)';
 
 export const HomeScreen: React.FC = () => {
   const { user } = useAuth();
@@ -239,102 +242,196 @@ export const HomeScreen: React.FC = () => {
     return t('eveningTask');
   };
 
+  const isIOS = Platform.OS === 'ios';
+
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      colors={[colors.primary]}
+      tintColor={colors.primary}
+    />
+  );
+
+  const statusLabel = (
+    status: ReturnType<typeof getEffectiveStatus>
+  ): string =>
+    status === 'completed'
+      ? t('statusCompleted')
+      : status === 'missed'
+        ? t('statusMissed')
+        : status === 'due'
+          ? t('statusDue')
+          : t('statusPending');
+
   return (
-    <View style={[styles.wrapper, uiStyles.screen]}>
+    <View style={[styles.wrapper, !isIOS && uiStyles.screen, isIOS && styles.wrapperIOS]}>
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-      }
+      style={[styles.container, isIOS && styles.containerIOS]}
+      contentContainerStyle={[styles.content, isIOS && styles.contentIOS]}
+      refreshControl={refreshControl}
     >
-      <View style={[uiStyles.card, styles.header]}>
-        <Text style={styles.greeting}>{greeting}</Text>
-        <Text style={styles.userName}>{displayName}</Text>
-        <Text style={styles.tagline}>{t('todayQuestion')}</Text>
-      </View>
+      {isIOS ? (
+        <>
+          <View style={styles.iosGreetingBlock}>
+            <Text style={styles.iosGreetingCaps}>{greeting}</Text>
+            <Text style={styles.iosUserName}>{displayName}</Text>
+            <Text style={styles.iosTagline}>{t('todayQuestion')}</Text>
+          </View>
 
-      <View style={[uiStyles.card, styles.progressCard]}>
-        <Text style={styles.progressLabel}>{t('dailyProgress')}</Text>
-        <View style={styles.progressBar}>
-          <View
-            style={[styles.progressFill, { width: `${progressPercent}%` }]}
-          />
-        </View>
-        <Text style={styles.progressText}>
-          {completedCount}/{plannedSessionTypes.length} {t('progressCompleted')} ({progressPercent}%)
-        </Text>
-      </View>
-
-      <Text style={[uiStyles.sectionTitle, styles.sectionTitle]}>{t('todayTasks')}</Text>
-
-      {plannedSessionTypes.map((sessionType) => {
-        const session = getSession(sessionType);
-        const status = getEffectiveStatus(session, sessionType);
-        const chip = timeChipColors(status);
-        return (
-          <View key={sessionType} style={[styles.taskCard, status === 'completed' && styles.taskCardCompleted]}>
-            <View style={styles.taskHeaderRow}>
-              <Text style={styles.taskTitle}>{getSessionTitle(sessionType)}</Text>
-              <View style={[styles.taskTimeChip, { backgroundColor: chip.bg, borderColor: chip.border }]}>
-                <Ionicons name="time-outline" size={12} color={chip.fg} />
-                <Text style={[styles.taskTimeText, { color: chip.fg }]}>{getSessionTime(session, sessionType)}</Text>
-              </View>
+          <View style={styles.iosInsetGroup}>
+            <View style={styles.iosProgressHeaderRow}>
+              <Text style={styles.iosProgressLabel}>{t('dailyProgress')}</Text>
+              <Text style={styles.iosProgressFraction}>
+                {completedCount}/{plannedSessionTypes.length} · {progressPercent}%
+              </Text>
             </View>
-            <Text style={styles.taskStatusInline}>
-              {status === 'completed' ? t('statusCompleted') : status === 'missed' ? t('statusMissed') : status === 'due' ? t('statusDue') : t('statusPending')}
+            <View style={styles.iosProgressTrack}>
+              <View style={[styles.iosProgressFill, { width: `${progressPercent}%` }]} />
+            </View>
+          </View>
+
+          <Text style={styles.iosSectionHeader}>{t('todayTasks')}</Text>
+
+          <View style={styles.iosInsetGroup}>
+            {plannedSessionTypes.map((sessionType, index) => {
+              const session = getSession(sessionType);
+              const status = getEffectiveStatus(session, sessionType);
+              const done = status === 'completed';
+              return (
+                <View key={sessionType}>
+                  {index > 0 ? <View style={styles.iosSepInset} /> : null}
+                  <View style={[styles.iosTaskCell, done && styles.iosTaskCellDone]}>
+                    <View style={styles.iosTaskTopRow}>
+                      <Text style={styles.iosTaskTitle}>{getSessionTitle(sessionType)}</Text>
+                      <Text style={styles.iosTaskTime}>{getSessionTime(session, sessionType)}</Text>
+                    </View>
+                    <Text style={styles.iosTaskStatus}>{statusLabel(status)}</Text>
+                    <TouchableOpacity
+                      style={[styles.iosTaskBtn, done && styles.iosTaskBtnOutline]}
+                      onPress={() => handleStartBrushing(sessionType)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={[styles.iosTaskBtnLabel, done && styles.iosTaskBtnLabelOutline]}>
+                        {done ? t('repeatBrushing') : status === 'missed' ? t('brushAnyway') : t('startBrushing')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          <Text style={styles.iosMotivation}>{motivationMessage}</Text>
+
+          {weeklyRankings.length > 0 ? (
+            <View style={styles.iosInsetGroup}>
+              <TouchableOpacity
+                style={styles.iosChevronRow}
+                onPress={() => tabJump?.jumpToTab('Leaderboard')}
+                activeOpacity={0.65}
+              >
+                <Text style={styles.iosChevronRowLabel}>{t('weeklyRanking')}</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.muted} />
+              </TouchableOpacity>
+              <View style={styles.iosSepFull} />
+              <WeeklySummaryCard
+                embedded
+                myRank={weeklyRank}
+                championName={championName}
+                weeklyRankings={weeklyRankings}
+                currentUserId={user?.id}
+              />
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <View style={[uiStyles.card, styles.header]}>
+            <Text style={styles.greeting}>{greeting}</Text>
+            <Text style={styles.userName}>{displayName}</Text>
+            <Text style={styles.tagline}>{t('todayQuestion')}</Text>
+          </View>
+
+          <View style={[uiStyles.card, styles.progressCard]}>
+            <Text style={styles.progressLabel}>{t('dailyProgress')}</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            </View>
+            <Text style={styles.progressText}>
+              {completedCount}/{plannedSessionTypes.length} {t('progressCompleted')} ({progressPercent}%)
             </Text>
-            <TouchableOpacity
-              style={[styles.taskBtn, status === 'completed' && styles.taskBtnSecondary]}
-              onPress={() => handleStartBrushing(sessionType)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.taskBtnText, status === 'completed' && styles.taskBtnTextSecondary]}>
-                {status === 'completed' ? t('repeatBrushing') : status === 'missed' ? t('brushAnyway') : t('startBrushing')}
-              </Text>
-            </TouchableOpacity>
           </View>
-        );
-      })}
 
-      <Text style={styles.motivationText}>{motivationMessage}</Text>
+          <Text style={[uiStyles.sectionTitle, styles.sectionTitle]}>{t('todayTasks')}</Text>
 
-      {weeklyRankings.length > 0 && (
-        <TouchableOpacity
-          style={[uiStyles.card, styles.leaderboardPreview]}
-          onPress={() => tabJump?.jumpToTab('Leaderboard')}
-          activeOpacity={0.8}
-        >
-          <View style={styles.previewHeader}>
-            <Text style={styles.previewTitle}>{t('weeklyRanking')}</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-          </View>
-          {weeklyRankings.slice(0, 5).map((r, i) => (
-            <View key={r.userId} style={[styles.previewRowWrap, r.userId === user?.id && styles.previewRowHighlight]}>
-              <View style={styles.previewRankBox}>
-                <Text style={styles.previewRank}>{i + 1}.</Text>
+          {plannedSessionTypes.map((sessionType) => {
+            const session = getSession(sessionType);
+            const status = getEffectiveStatus(session, sessionType);
+            const chip = timeChipColors(status);
+            return (
+              <View key={sessionType} style={[styles.taskCard, status === 'completed' && styles.taskCardCompleted]}>
+                <View style={styles.taskHeaderRow}>
+                  <Text style={styles.taskTitle}>{getSessionTitle(sessionType)}</Text>
+                  <View style={[styles.taskTimeChip, { backgroundColor: chip.bg, borderColor: chip.border }]}>
+                    <Ionicons name="time-outline" size={12} color={chip.fg} />
+                    <Text style={[styles.taskTimeText, { color: chip.fg }]}>{getSessionTime(session, sessionType)}</Text>
+                  </View>
+                </View>
+                <Text style={styles.taskStatusInline}>{statusLabel(status)}</Text>
+                <TouchableOpacity
+                  style={[styles.taskBtn, status === 'completed' && styles.taskBtnSecondary]}
+                  onPress={() => handleStartBrushing(sessionType)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.taskBtnText, status === 'completed' && styles.taskBtnTextSecondary]}>
+                    {status === 'completed' ? t('repeatBrushing') : status === 'missed' ? t('brushAnyway') : t('startBrushing')}
+                  </Text>
+                </TouchableOpacity>
               </View>
-              <Text style={[styles.previewRow, r.userId === user?.id && styles.previewRowYou]} numberOfLines={1}>
-                {r.userId === user?.id ? t('you') : r.username}
-              </Text>
-              <Text style={styles.previewPoints}>
-                {r.points} {t('leaderboardPointsUnit')}
-              </Text>
-            </View>
-          ))}
-        </TouchableOpacity>
-      )}
+            );
+          })}
 
-      {weeklyRankings.length > 0 ? (
-        <View style={styles.weeklySection}>
-          <WeeklySummaryCard
-            myRank={weeklyRank}
-            championName={championName}
-            weeklyRankings={weeklyRankings}
-            currentUserId={user?.id}
-          />
-        </View>
-      ) : null}
+          <Text style={styles.motivationText}>{motivationMessage}</Text>
+
+          {weeklyRankings.length > 0 && (
+            <TouchableOpacity
+              style={[uiStyles.card, styles.leaderboardPreview]}
+              onPress={() => tabJump?.jumpToTab('Leaderboard')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.previewHeader}>
+                <Text style={styles.previewTitle}>{t('weeklyRanking')}</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              </View>
+              {weeklyRankings.slice(0, 5).map((r, i) => (
+                <View key={r.userId} style={[styles.previewRowWrap, r.userId === user?.id && styles.previewRowHighlight]}>
+                  <View style={styles.previewRankBox}>
+                    <Text style={styles.previewRank}>{i + 1}.</Text>
+                  </View>
+                  <Text style={[styles.previewRow, r.userId === user?.id && styles.previewRowYou]} numberOfLines={1}>
+                    {r.userId === user?.id ? t('you') : r.username}
+                  </Text>
+                  <Text style={styles.previewPoints}>
+                    {r.points} {t('leaderboardPointsUnit')}
+                  </Text>
+                </View>
+              ))}
+            </TouchableOpacity>
+          )}
+
+          {weeklyRankings.length > 0 ? (
+            <View style={styles.weeklySection}>
+              <WeeklySummaryCard
+                myRank={weeklyRank}
+                championName={championName}
+                weeklyRankings={weeklyRankings}
+                currentUserId={user?.id}
+              />
+            </View>
+          ) : null}
+        </>
+      )}
     </ScrollView>
 
     <Modal visible={lateBrushModal !== null} transparent animationType="fade" onRequestClose={handleLateBrushCancel}>
@@ -375,8 +472,176 @@ export const HomeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   wrapper: { flex: 1 },
+  wrapperIOS: { backgroundColor: IOS_GROUPED_BG },
   container: { flex: 1, backgroundColor: colors.background },
+  containerIOS: { backgroundColor: IOS_GROUPED_BG },
   content: { padding: ui.screenPadding, paddingBottom: 40, flexGrow: 1 },
+  contentIOS: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 48,
+    flexGrow: 1,
+  },
+  iosGreetingBlock: {
+    marginBottom: 20,
+    paddingHorizontal: 4,
+  },
+  iosGreetingCaps: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.muted,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  iosUserName: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  iosTagline: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    marginTop: 6,
+    lineHeight: 20,
+  },
+  iosInsetGroup: {
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      default: {},
+    }),
+  },
+  iosProgressHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 8,
+  },
+  iosProgressLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  iosProgressFraction: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.muted,
+  },
+  iosProgressTrack: {
+    height: 4,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: 'rgba(60, 60, 67, 0.12)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  iosProgressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+  iosSectionHeader: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: colors.muted,
+    textTransform: 'uppercase',
+    letterSpacing: -0.08,
+    marginBottom: 8,
+    marginLeft: 16,
+  },
+  iosSepInset: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: IOS_SEPARATOR,
+    marginLeft: 16,
+  },
+  iosSepFull: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: IOS_SEPARATOR,
+  },
+  iosTaskCell: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+  },
+  iosTaskCellDone: {
+    backgroundColor: 'rgba(46, 204, 113, 0.06)',
+  },
+  iosTaskTopRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  iosTaskTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  iosTaskTime: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: colors.muted,
+    fontVariant: ['tabular-nums'],
+  },
+  iosTaskStatus: {
+    fontSize: 13,
+    color: colors.muted,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  iosTaskBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iosTaskBtnOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: colors.primary,
+  },
+  iosTaskBtnLabel: {
+    color: colors.white,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  iosTaskBtnLabelOutline: {
+    color: colors.primary,
+  },
+  iosMotivation: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 12,
+  },
+  iosChevronRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    minHeight: 44,
+  },
+  iosChevronRowLabel: {
+    fontSize: 17,
+    color: colors.text,
+  },
   header: {
     marginBottom: 10,
     paddingVertical: 12,

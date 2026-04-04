@@ -2,6 +2,7 @@
   "expo": {
     "name": "Brush Timer",
     "slug": "brush-battle",
+    "icon": "./assets/images/app-logo.png",
     "ios": {
       "bundleIdentifier": "com.brushbattle"
     },

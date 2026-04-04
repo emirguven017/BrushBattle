@@ -36,16 +36,18 @@ export const AppBranding: React.FC<AppBrandingProps> = ({
           accessibilityIgnoresInvertColors
         />
       </View>
-      <Text
-        style={[
-          styles.title,
-          onBrand ? styles.titleOnBrand : styles.titleOnLight,
-          compact && styles.titleCompact,
-          titleStyle,
-        ]}
-      >
-        {title}
-      </Text>
+      {title ? (
+        <Text
+          style={[
+            styles.title,
+            onBrand ? styles.titleOnBrand : styles.titleOnLight,
+            compact && styles.titleCompact,
+            titleStyle,
+          ]}
+        >
+          {title}
+        </Text>
+      ) : null}
       {subtitle ? (
         <Text style={[styles.subtitle, onBrand ? styles.subOnBrand : styles.subOnLight]}>{subtitle}</Text>
       ) : null}

@@ -4,6 +4,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, headerTitle } from '../utils/colors';
+import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useTabJump } from '../context/TabJumpContext';
@@ -294,13 +295,21 @@ export const UseFeatureScreen: React.FC = () => {
   if (!user) return null;
 
   return (
-    <View style={styles.wrapper}>
-      <View style={[styles.header, { paddingTop: insets.top }]}>
-        <Text style={styles.title}>{t('useFeatureTitle')}</Text>
-        <Text style={styles.subtitle}>{subtitleText}</Text>
-      </View>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      {!isIosUi ? (
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <Text style={styles.title}>{t('useFeatureTitle')}</Text>
+          <Text style={styles.subtitle}>{subtitleText}</Text>
+        </View>
+      ) : null}
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+        contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
+      >
+        {isIosUi && subtitleText ? (
+          <Text style={[styles.subtitleIos, { marginBottom: 12 }]}>{subtitleText}</Text>
+        ) : null}
         {isFullMode && (
           <View style={styles.targetBox}>
             <Text style={styles.sectionTitle}>{t('selectedTarget')}</Text>
@@ -405,6 +414,13 @@ const styles = StyleSheet.create({
   },
   title: { ...headerTitle },
   subtitle: { marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
+  subtitleIos: {
+    color: colors.muted,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    marginTop: -4,
+  },
   container: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 8 },

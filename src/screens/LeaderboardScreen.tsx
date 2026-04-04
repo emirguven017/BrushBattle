@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, headerTitle, ui } from '../utils/colors';
 import { uiStyles } from '../utils/uiStyles';
+import { IOS_GROUPED_BG, iosSectionLabelText, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { LeaderboardService } from '../services/LeaderboardService';
@@ -45,13 +46,15 @@ export const LeaderboardScreen: React.FC = () => {
 
   if (!user?.groupId) {
     return (
-      <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
-        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-          <View style={styles.titleBar}>
-            <Text style={styles.title}>{t('weeklyScoreTitle')}</Text>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+        {!isIosUi ? (
+          <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+            <View style={styles.titleBar}>
+              <Text style={styles.title}>{t('weeklyScoreTitle')}</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.empty}>
+        ) : null}
+        <View style={[styles.empty, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
           <Text style={styles.emptyText}>{t('joinGroupFirst')}</Text>
         </View>
       </View>
@@ -59,13 +62,15 @@ export const LeaderboardScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.wrapper}>
-      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-        <View style={styles.titleBar}>
-          <Text style={styles.title}>{t('weeklyScoreTitle')}</Text>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      {!isIosUi ? (
+        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+          <View style={styles.titleBar}>
+            <Text style={styles.title}>{t('weeklyScoreTitle')}</Text>
+          </View>
         </View>
-      </View>
-      <View style={[styles.content, uiStyles.content]}>
+      ) : null}
+      <View style={[styles.content, uiStyles.content, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
       <View style={styles.rewardWrap}>
         <View style={styles.rewardCard}>
           <RewardCard rank={1} />
@@ -77,12 +82,25 @@ export const LeaderboardScreen: React.FC = () => {
           <RewardCard rank={3} />
         </View>
       </View>
-      <Text style={[uiStyles.sectionTitle, styles.rankingTitle]}>{t('ranking')}</Text>
+      <Text
+        style={[
+          uiStyles.sectionTitle,
+          styles.rankingTitle,
+          isIosUi && iosSectionLabelText,
+        ]}
+      >
+        {t('ranking')}
+      </Text>
       <FlatList
         data={rankings}
         keyExtractor={r => r.userId}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
         contentContainerStyle={[styles.list, rankings.length === 0 && styles.listEmpty]}
         ListEmptyComponent={

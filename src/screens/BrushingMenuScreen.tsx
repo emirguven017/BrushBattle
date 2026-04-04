@@ -17,6 +17,7 @@ import { NotificationService } from '../services/NotificationService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
 import { colors, ui } from '../utils/colors';
 import { uiStyles } from '../utils/uiStyles';
+import { IOS_GROUPED_BG, iosGroupedCard, isIosUi } from '../utils/iosUi';
 import { dateKey } from '../utils/date';
 import type { BrushSession, SessionType } from '../types';
 
@@ -171,29 +172,100 @@ export const BrushingMenuScreen: React.FC = () => {
   const weekdayLabels = t('weekdaysShort').split(',').slice(0, 7);
 
   return (
-    <View style={[styles.container, uiStyles.screen]}>
+    <View style={[styles.container, uiStyles.screen, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
       >
-        <View style={[uiStyles.card, styles.card]}>
-          <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('brushingGraphTitle')}</Text>
-          <Text style={styles.cardSubtitle}>{t('brushingGraphSubtitle')}</Text>
-          <View style={styles.chartWrap}>
-            {weekProgress.map((v, i) => (
-              <View key={`${weekdayLabels[i] ?? i}`} style={styles.barCol}>
-                <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { height: v === 0 ? '0%' : `${Math.max(8, v)}%` }]} />
-                </View>
-                <Text style={styles.barLabel}>{weekdayLabels[i] ?? ''}</Text>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() =>
+            (nav as { navigate: (name: string) => void }).navigate('BrushingAnalytics')
+          }
+          accessibilityRole="button"
+          accessibilityLabel={`${t('brushingGraphTitle')}. ${t('brushingGraphTapHint')}`}
+        >
+          <View style={[uiStyles.card, styles.card, isIosUi && iosGroupedCard]}>
+            <View style={styles.graphHeaderRow}>
+              <View style={styles.graphHeaderText}>
+                <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('brushingGraphTitle')}</Text>
+                <Text style={styles.cardSubtitle}>{t('brushingGraphSubtitle')}</Text>
               </View>
-            ))}
+              <Ionicons name="chevron-forward" size={22} color={colors.muted} />
+            </View>
+            <Text style={styles.tapHint}>{t('brushingGraphTapHint')}</Text>
+            <View style={styles.chartWrap}>
+              {weekProgress.map((v, i) => (
+                <View key={`${weekdayLabels[i] ?? i}`} style={styles.barCol}>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { height: v === 0 ? '0%' : `${Math.max(8, v)}%` }]} />
+                  </View>
+                  <Text style={styles.barLabel}>{weekdayLabels[i] ?? ''}</Text>
+                </View>
+              ))}
+            </View>
           </View>
+        </TouchableOpacity>
+
+        <View style={[uiStyles.card, styles.card, isIosUi && iosGroupedCard]}>
+          <View style={styles.rowBetween}>
+            <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('sessionListTitle')}</Text>
+            <Text style={styles.pointHint}>+{sessionPoints} {t('pointsLabel')}</Text>
+          </View>
+          {plannedTypes.map((sessionType) => {
+            const session = sessions.find((s) => s.sessionType === sessionType);
+            const status = getEffectiveStatus(session, sessionType);
+            return (
+              <View key={sessionType} style={styles.sessionRow}>
+                <View style={styles.sessionHead}>
+                  <Text style={styles.sessionTitle}>{getSessionTitle(sessionType)}</Text>
+                  <Text style={styles.sessionTime}>{getSessionTime(sessionType, session?.scheduledTime)}</Text>
+                </View>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.statusText}>
+                    {status === 'completed'
+                      ? t('statusCompleted')
+                      : status === 'missed'
+                        ? t('statusMissed')
+                        : status === 'due'
+                          ? t('statusDue')
+                          : t('statusPending')}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      status === 'completed' ? uiStyles.buttonSecondary : uiStyles.buttonPrimary,
+                      styles.startBtn,
+                      status === 'completed' && styles.startBtnSecondary
+                    ]}
+                    onPress={() => handleStart(sessionType, status)}
+                  >
+                    <Ionicons
+                      name={status === 'completed' ? 'refresh' : 'play'}
+                      size={14}
+                      color={status === 'completed' ? colors.primary : colors.white}
+                    />
+                    <Text style={[styles.startBtnText, status === 'completed' && styles.startBtnTextSecondary]}>
+                      {status === 'completed'
+                        ? t('repeatBrushing')
+                        : status === 'missed'
+                          ? t('brushAnyway')
+                          : t('startBrushing')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
         </View>
 
-        <View style={[uiStyles.card, styles.card]}>
+        <View style={[uiStyles.card, styles.card, isIosUi && iosGroupedCard]}>
           <View style={styles.countdownHeader}>
             <View style={styles.countdownIconWrap}>
               <Ionicons name="refresh-circle" size={20} color={colors.primary} />
@@ -250,57 +322,6 @@ export const BrushingMenuScreen: React.FC = () => {
             </>
           ) : null}
         </View>
-
-        <View style={[uiStyles.card, styles.card]}>
-          <View style={styles.rowBetween}>
-            <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('sessionListTitle')}</Text>
-            <Text style={styles.pointHint}>+{sessionPoints} {t('pointsLabel')}</Text>
-          </View>
-          {plannedTypes.map((sessionType) => {
-            const session = sessions.find((s) => s.sessionType === sessionType);
-            const status = getEffectiveStatus(session, sessionType);
-            return (
-              <View key={sessionType} style={styles.sessionRow}>
-                <View style={styles.sessionHead}>
-                  <Text style={styles.sessionTitle}>{getSessionTitle(sessionType)}</Text>
-                  <Text style={styles.sessionTime}>{getSessionTime(sessionType, session?.scheduledTime)}</Text>
-                </View>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.statusText}>
-                    {status === 'completed'
-                      ? t('statusCompleted')
-                      : status === 'missed'
-                        ? t('statusMissed')
-                        : status === 'due'
-                          ? t('statusDue')
-                          : t('statusPending')}
-                  </Text>
-                  <TouchableOpacity
-                    style={[
-                      status === 'completed' ? uiStyles.buttonSecondary : uiStyles.buttonPrimary,
-                      styles.startBtn,
-                      status === 'completed' && styles.startBtnSecondary
-                    ]}
-                    onPress={() => handleStart(sessionType, status)}
-                  >
-                    <Ionicons
-                      name={status === 'completed' ? 'refresh' : 'play'}
-                      size={14}
-                      color={status === 'completed' ? colors.primary : colors.white}
-                    />
-                    <Text style={[styles.startBtnText, status === 'completed' && styles.startBtnTextSecondary]}>
-                      {status === 'completed'
-                        ? t('repeatBrushing')
-                        : status === 'missed'
-                          ? t('brushAnyway')
-                          : t('startBrushing')}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          })}
-        </View>
       </ScrollView>
 
       <Modal
@@ -352,6 +373,14 @@ const styles = StyleSheet.create({
   },
   cardTitle: { marginBottom: 0 },
   cardSubtitle: { marginTop: 2, fontSize: 11, color: colors.muted },
+  graphHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  graphHeaderText: { flex: 1, minWidth: 0 },
+  tapHint: { marginTop: 6, fontSize: 11, color: colors.primary, fontWeight: '600' },
   countdownHeader: {
     flexDirection: 'row',
     alignItems: 'center',

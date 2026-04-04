@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../utils/colors';
+import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
 import { useLanguage } from '../context/LanguageContext';
 import { NotificationService } from '../services/NotificationService';
 import {
@@ -629,12 +630,18 @@ export const WelcomeWizardScreen: React.FC<WelcomeWizardScreenProps> = ({
     step === 10 || step === 11 ? undefined : ('arrow-forward' as const);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.root,
+        { paddingTop: insets.top },
+        isIosUi && { backgroundColor: IOS_GROUPED_BG },
+      ]}
+    >
       <View style={styles.topBar}>
         {showBack ? (
           <TouchableOpacity onPress={goBack} style={styles.backBtn} hitSlop={12}>
-            <Ionicons name="chevron-back" size={22} color={colors.accent} />
-            <Text style={styles.backText}>{t('wwBack')}</Text>
+            <Ionicons name="chevron-back" size={22} color={isIosUi ? '#007AFF' : colors.accent} />
+            <Text style={[styles.backText, isIosUi && { color: '#007AFF' }]}>{t('wwBack')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.backPlaceholder} />

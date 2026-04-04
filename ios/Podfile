@@ -15,6 +15,8 @@ end
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
 ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true'
 ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true'
+# Prebuilt React.framework: download & merge dSYMs so App Store Connect can match crash UUIDs.
+ENV['RCT_SYMBOLICATE_PREBUILT_FRAMEWORKS'] ||= '1'
 ENV['RCT_HERMES_V1_ENABLED'] ||= '1' if podfile_properties['expo.useHermesV1'] == 'true'
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 
@@ -59,5 +61,32 @@ target 'BrushTimer' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # RN + Pods: quoted includes (e.g. Yoga/YGEnums.h) must match CocoaPods xcconfigs — avoids
+    # "Non-portable path to file" / case-sensitive header friction vs project-level YES.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |cfg|
+        cfg.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+
+        # ExpoModulesCore / ExpoModulesJSI: nullability noise. OTHER_CFLAGS is often an Array in the
+        # Xcode project — never "#{array} ..." (breaks clang: no such file or directory: '[,').
+        if ['ExpoModulesCore', 'ExpoModulesJSI'].include?(target.name)
+          add = ['-Wno-nullability-completeness', '-Wno-nullability-extension']
+          flags = cfg.build_settings['OTHER_CFLAGS']
+          if flags.is_a?(Array)
+            next if flags.any? { |f| f.to_s.include?('nullability-completeness') }
+
+            cfg.build_settings['OTHER_CFLAGS'] = flags + add
+          elsif flags.nil? || flags.to_s.strip.empty?
+            cfg.build_settings['OTHER_CFLAGS'] = ['$(inherited)'] + add
+          else
+            s = flags.to_s
+            next if s.include?('nullability-completeness')
+
+            cfg.build_settings['OTHER_CFLAGS'] = "#{s} #{add.join(' ')}"
+          end
+        end
+      end
+    end
   end
 end

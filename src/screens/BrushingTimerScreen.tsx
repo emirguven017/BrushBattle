@@ -10,6 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { colors } from '../utils/colors';
+import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
@@ -179,14 +180,14 @@ export const BrushingTimerScreen: React.FC = () => {
 
   if (!session) {
     return (
-      <View style={styles.wrapper}>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
         <Text style={styles.error}>{t('sessionNotFound')}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
       <Modal
         visible={rewardModal !== null}
         transparent

@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Keyboa
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, headerTitle } from '../utils/colors';
+import { IOS_GROUPED_BG, iosScreenTitleText, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
@@ -53,17 +54,26 @@ export const OnboardingScreen: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.wrapper, { backgroundColor: colors.primary }]}
+      style={[
+        styles.wrapper,
+        { backgroundColor: isIosUi ? IOS_GROUPED_BG : colors.primary },
+      ]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
-      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-        <View style={styles.titleBar}>
-          <Text style={styles.title}>{t('welcomeTitle')}</Text>
+      <View
+        style={[
+          styles.greenHeader,
+          isIosUi && { backgroundColor: IOS_GROUPED_BG },
+          { paddingTop: insets.top },
+        ]}
+      >
+        <View style={[styles.titleBar, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+          <Text style={[styles.title, isIosUi && iosScreenTitleText]}>{t('welcomeTitle')}</Text>
         </View>
       </View>
       <ScrollView
-        style={styles.scrollView}
+        style={[styles.scrollView, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

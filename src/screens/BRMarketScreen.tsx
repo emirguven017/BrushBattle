@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { colors, headerTitle, ui } from '../utils/colors';
 import { uiStyles } from '../utils/uiStyles';
+import { IOS_GROUPED_BG, iosGroupedCard, isIosUi } from '../utils/iosUi';
 import type { MarketCategory, MarketItemId, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
@@ -181,25 +182,45 @@ export const BRMarketScreen: React.FC = () => {
   if (!user) return null;
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
-      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-        <View style={styles.titleBar}>
-        <Text style={styles.title}>{t('brMarketTitle')}</Text>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      {!isIosUi ? (
+        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+          <View style={styles.titleBar}>
+            <Text style={styles.title}>{t('brMarketTitle')}</Text>
+          </View>
         </View>
-      </View>
-      <ScrollView style={styles.container} contentContainerStyle={[styles.content, uiStyles.content]}>
+      ) : null}
+      <ScrollView
+        style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+        contentContainerStyle={[
+          styles.content,
+          uiStyles.content,
+          isIosUi && { paddingHorizontal: 16 },
+        ]}
+      >
         <BRBalanceCard brScore={brScore} />
         <InventoryList items={items} />
         <ActiveEffectsList effects={effects} />
 
-        <View style={styles.tabs}>
+        <View style={[styles.tabs, isIosUi && iosGroupedCard, isIosUi && { padding: 4, gap: 4 }]}>
           {CATEGORIES.map((c) => (
             <TouchableOpacity
               key={c}
               onPress={() => setTab(c)}
-              style={[styles.tabBtn, tab === c && styles.tabBtnActive]}
+              style={[
+                styles.tabBtn,
+                tab === c && styles.tabBtnActive,
+                isIosUi && { borderRadius: 8 },
+                isIosUi && tab !== c && styles.tabBtnIosPlain,
+              ]}
             >
-              <Text style={[styles.tabText, tab === c && styles.tabTextActive]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  tab === c && styles.tabTextActive,
+                  isIosUi && tab !== c && styles.tabTextIosMuted,
+                ]}
+              >
                 {c === 'attack' ? t('attack') : c === 'defense' ? t('defense') : t('boost')}
               </Text>
             </TouchableOpacity>
@@ -207,7 +228,7 @@ export const BRMarketScreen: React.FC = () => {
         </View>
 
         {tab === 'attack' && (
-          <View style={styles.targetBox}>
+          <View style={[styles.targetBox, isIosUi && iosGroupedCard]}>
             <Text style={styles.targetTitle}>{t('selectTarget')}</Text>
             <View style={styles.targetChips}>
               {members.map((m) => (
@@ -298,6 +319,15 @@ const styles = StyleSheet.create({
   tabBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabText: { color: colors.textSecondary, fontWeight: '700', fontSize: 11 },
   tabTextActive: { color: colors.white },
+  tabBtnIosPlain: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+  },
+  tabTextIosMuted: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 12,
+  },
   targetBox: {
     borderRadius: ui.radiusSm,
     borderWidth: ui.borderWidth,

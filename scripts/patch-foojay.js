@@ -1,6 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
+// EAS iOS: Gradle yamaları yalnızca Android içindir; bulutta iOS build'de postinstall bazen kurulumu bozabiliyor.
+if (process.env.EAS_BUILD_PLATFORM === 'ios') {
+  console.log('patch-foojay: skipped on EAS iOS (Android-only)');
+  process.exit(0);
+}
+
 const gradlePluginPath = path.join(__dirname, '..', 'node_modules', '@react-native', 'gradle-plugin');
 
 // Patch 1: foojay-resolver-convention sürümünü güncelle

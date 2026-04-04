@@ -9,6 +9,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, headerTitle, ui } from '../utils/colors';
+import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -98,14 +99,21 @@ export const HistoryScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.primary }]}>
-      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-        <View style={styles.titleBar}>
-        <Text style={styles.title}>{t('calendar')}</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: isIosUi ? IOS_GROUPED_BG : colors.primary },
+      ]}
+    >
+      {!isIosUi ? (
+        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+          <View style={styles.titleBar}>
+            <Text style={styles.title}>{t('calendar')}</Text>
+          </View>
         </View>
-      </View>
+      ) : null}
 
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: isIosUi ? IOS_GROUPED_BG : colors.background }}>
       <CalendarView
         days={days}
         currentMonth={currentMonth}

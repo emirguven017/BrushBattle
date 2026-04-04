@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TimePicker24 } from '../components/TimePicker24';
 import { colors, headerTitle, ui } from '../utils/colors';
 import { uiStyles } from '../utils/uiStyles';
+import { IOS_GROUPED_BG, iosGroupedCard, iosSectionLabelText, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useIntro } from '../context/IntroContext';
@@ -171,15 +172,24 @@ export const SettingsScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.wrapper, uiStyles.screen]}>
-      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-        <View style={styles.titleBar}>
-        <Text style={styles.title}>{t('settings')}</Text>
+    <View style={[styles.wrapper, uiStyles.screen, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      {!isIosUi ? (
+        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+          <View style={styles.titleBar}>
+            <Text style={styles.title}>{t('settings')}</Text>
+          </View>
         </View>
-      </View>
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, uiStyles.content]}>
-      <Text style={styles.sectionHeader}>{t('language')}</Text>
-      <View style={styles.card}>
+      ) : null}
+    <ScrollView
+      style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+      contentContainerStyle={[
+        styles.content,
+        uiStyles.content,
+        isIosUi && { paddingHorizontal: 16 },
+      ]}
+    >
+      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('language')}</Text>
+      <View style={[styles.card, isIosUi && iosGroupedCard]}>
         <View style={styles.languageRow}>
           <TouchableOpacity
             style={[styles.langBtn, language === 'tr' && styles.langBtnActive]}
@@ -206,8 +216,8 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
-      <Text style={styles.sectionHeader}>{t('brushingMenu')}</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('brushingMenu')}</Text>
+      <View style={[styles.card, isIosUi && iosGroupedCard]}>
         <Text style={styles.label}>{t('wwPerDayTitle')}</Text>
         <View style={styles.intervalRow}>
           {[1, 2, 3].map((count) => (
@@ -232,8 +242,8 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
-      <Text style={styles.sectionHeader}>{t('toothbrushReminderTitle')}</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('toothbrushReminderTitle')}</Text>
+      <View style={[styles.card, isIosUi && iosGroupedCard]}>
         <View style={styles.reminderRow}>
           <Text style={styles.reminderText}>{t('toothbrushReminderEnabled')}</Text>
           <Switch
@@ -269,8 +279,8 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
-      <Text style={styles.sectionHeader}>{t('settings')}</Text>
-      <View style={styles.card}>
+      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('settings')}</Text>
+      <View style={[styles.card, isIosUi && iosGroupedCard]}>
         <Text style={styles.label}>{t('username')}</Text>
         <TextInput
           style={styles.input}
@@ -281,7 +291,7 @@ export const SettingsScreen: React.FC = () => {
         />
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, isIosUi && iosGroupedCard]}>
         <Text style={styles.label}>{t('morningTime')}</Text>
         <TouchableOpacity
           style={styles.timeButton}
@@ -308,7 +318,7 @@ export const SettingsScreen: React.FC = () => {
       </View>
 
       {dailySessionCount === 3 && (
-        <View style={styles.card}>
+        <View style={[styles.card, isIosUi && iosGroupedCard]}>
           <Text style={styles.label}>{t('middayTime')}</Text>
           <TouchableOpacity
             style={styles.timeButton}
@@ -335,7 +345,7 @@ export const SettingsScreen: React.FC = () => {
         </View>
       )}
       {dailySessionCount >= 2 && (
-        <View style={styles.card}>
+        <View style={[styles.card, isIosUi && iosGroupedCard]}>
           <Text style={styles.label}>{t('eveningTime')}</Text>
           <TouchableOpacity
             style={styles.timeButton}
@@ -363,7 +373,11 @@ export const SettingsScreen: React.FC = () => {
       )}
 
       <TouchableOpacity
-        style={[styles.saveBtn, (!hasUnsavedChanges || saving) && styles.saveBtnDisabled]}
+        style={[
+          styles.saveBtn,
+          isIosUi && { borderRadius: 12, minHeight: 50 },
+          (!hasUnsavedChanges || saving) && styles.saveBtnDisabled,
+        ]}
         onPress={() => { handleSave().catch(() => {}); }}
         disabled={!hasUnsavedChanges || saving}
       >

@@ -2,6 +2,8 @@ module.exports = {
   expo: {
     name: "Brush Timer",
     slug: "brush-battle",
+    /** Mağaza / prebuild: 1024×1024 PNG tercih edilir; mevcut logo kullanılıyor */
+    icon: "./assets/images/app-logo.png",
     scheme: "brushbattle",
     plugins: ["expo-video"],
     extra: {

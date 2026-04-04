@@ -1,12 +1,18 @@
 import React from 'react';
-import { Linking as RNLinking, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Linking as RNLinking, Platform, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ExpoLinking from 'expo-linking';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { DefaultTheme, NavigationContainer, NavigationIndependentTree } from '@react-navigation/native';
+import {
+  CommonActions,
+  createNavigationContainerRef,
+  DefaultTheme,
+  NavigationContainer,
+  NavigationIndependentTree,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { AuthProvider } from './src/context/AuthContext';
@@ -20,6 +26,7 @@ import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { BrushingTimerScreen } from './src/screens/BrushingTimerScreen';
 import { BrushingMenuScreen } from './src/screens/BrushingMenuScreen';
+import { BrushingAnalyticsScreen } from './src/screens/BrushingAnalyticsScreen';
 import { GroupScreen } from './src/screens/GroupScreen';
 import { LeaderboardScreen } from './src/screens/LeaderboardScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
@@ -40,6 +47,7 @@ import {
 import { WelcomeWizardScreen } from './src/screens/WelcomeWizardScreen';
 import { LanguagePickFirstScreen } from './src/screens/LanguagePickFirstScreen';
 import { AppFeedbackModal } from './src/components/AppFeedbackModal';
+import { AppWordmark } from './src/components/AppWordmark';
 import { TabJumpContext, type AppTabKey } from './src/context/TabJumpContext';
 
 const Stack = createNativeStackNavigator();
@@ -57,6 +65,20 @@ const headerOptions = {
   }
 };
 
+const IOS_GROUPED = '#F2F2F7';
+
+/** iOS: tüm ana sekmelerde Ana Sayfa ile aynı Brush Timer (AppWordmark) başlığı */
+const iosBrushTimerHeaderScreenOptions = (t: (key: string) => string) => ({
+  title: t('homeHeaderTitle'),
+  headerLargeTitle: false,
+  headerTitleAlign: 'center' as const,
+  headerTitle: () => <AppWordmark name={t('appName')} variant="nav" />,
+  headerShadowVisible: false,
+  headerStyle: { backgroundColor: IOS_GROUPED },
+  headerTintColor: '#007AFF',
+  contentStyle: { backgroundColor: IOS_GROUPED },
+});
+
 const HomeStack: React.FC = () => {
   const { t } = useLanguage();
   return (
@@ -64,12 +86,20 @@ const HomeStack: React.FC = () => {
       <Stack.Screen
         name="HomeMain"
         component={HomeScreen}
-        options={{ title: t('homeHeaderTitle') }}
+        options={
+          Platform.OS === 'ios'
+            ? iosBrushTimerHeaderScreenOptions(t)
+            : { title: t('homeHeaderTitle') }
+        }
       />
       <Stack.Screen
         name="BrushingTimer"
         component={BrushingTimerScreen}
-        options={{ title: t('brushingTime') }}
+        options={
+          Platform.OS === 'ios'
+            ? iosBrushTimerHeaderScreenOptions(t)
+            : { title: t('brushingTime') }
+        }
       />
     </Stack.Navigator>
   );
@@ -78,24 +108,36 @@ const HomeStack: React.FC = () => {
 const BrushingStack: React.FC = () => {
   const { t } = useLanguage();
   return (
-    <Stack.Navigator screenOptions={headerOptions}>
+    <Stack.Navigator
+      screenOptions={
+        Platform.OS === 'ios' ? iosBrushTimerHeaderScreenOptions(t) : headerOptions
+      }
+    >
+      <Stack.Screen name="BrushingMenuMain" component={BrushingMenuScreen} />
       <Stack.Screen
-        name="BrushingMenuMain"
-        component={BrushingMenuScreen}
-        options={{ title: t('brushingMenu') }}
+        name="BrushingAnalytics"
+        component={BrushingAnalyticsScreen}
+        options={
+          Platform.OS === 'ios'
+            ? iosBrushTimerHeaderScreenOptions(t)
+            : { ...headerOptions, title: t('brushingAnalyticsTitle') }
+        }
       />
-      <Stack.Screen
-        name="BrushingTimer"
-        component={BrushingTimerScreen}
-        options={{ title: t('brushingTime') }}
-      />
+      <Stack.Screen name="BrushingTimer" component={BrushingTimerScreen} />
     </Stack.Navigator>
   );
 };
 
 const LeaderboardStack: React.FC = () => {
+  const { t } = useLanguage();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={
+        Platform.OS === 'ios'
+          ? iosBrushTimerHeaderScreenOptions(t)
+          : { headerShown: false }
+      }
+    >
       <Stack.Screen name="LeaderboardMain" component={LeaderboardScreen} />
       <Stack.Screen name="UseFeature" component={UseFeatureScreen} />
     </Stack.Navigator>
@@ -103,34 +145,99 @@ const LeaderboardStack: React.FC = () => {
 };
 
 const GroupStack: React.FC = () => {
+  const { t } = useLanguage();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={
+        Platform.OS === 'ios'
+          ? iosBrushTimerHeaderScreenOptions(t)
+          : { headerShown: false }
+      }
+    >
       <Stack.Screen name="GroupMain" component={GroupScreen} />
     </Stack.Navigator>
   );
 };
 
 const BRMarketStack: React.FC = () => {
+  const { t } = useLanguage();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={
+        Platform.OS === 'ios'
+          ? iosBrushTimerHeaderScreenOptions(t)
+          : { headerShown: false }
+      }
+    >
       <Stack.Screen name="BRMarketMain" component={BRMarketScreen} />
     </Stack.Navigator>
   );
 };
 
 const HistoryStack: React.FC = () => {
+  const { t } = useLanguage();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={
+        Platform.OS === 'ios'
+          ? iosBrushTimerHeaderScreenOptions(t)
+          : { headerShown: false }
+      }
+    >
       <Stack.Screen name="HistoryMain" component={HistoryScreen} />
     </Stack.Navigator>
   );
 };
 
 const SettingsStack: React.FC = () => {
+  const { t } = useLanguage();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={
+        Platform.OS === 'ios'
+          ? iosBrushTimerHeaderScreenOptions(t)
+          : { headerShown: false }
+      }
+    >
       <Stack.Screen name="SettingsMain" component={SettingsScreen} />
     </Stack.Navigator>
+  );
+};
+
+/** Score sekmesi: zaten sıralamadaysa reset yok; Features (UseFeature) açıkken sekme/geri dönüşte köke dön */
+const resetLeaderboardStackToRoot = (ref: {
+  isReady(): boolean;
+  dispatch(action: object): void;
+  getRootState(): { routes?: { name?: string }[]; index?: number } | undefined;
+}) => {
+  if (!ref.isReady()) return;
+  const state = ref.getRootState();
+  const route = state?.routes?.[state.index ?? 0];
+  if (route?.name === 'LeaderboardMain') return;
+  ref.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [{ name: 'LeaderboardMain' }],
+    })
+  );
+};
+
+/** Brush sekmesi: analiz üstünden dönünce ana menü; timer açıksa veya zaten ana menüdeysek dokunma/yenileme yok */
+const resetBrushingStackToMenu = (ref: {
+  isReady(): boolean;
+  dispatch(action: object): void;
+  getRootState(): { routes?: { name?: string }[]; index?: number } | undefined;
+}) => {
+  if (!ref.isReady()) return;
+  const state = ref.getRootState();
+  const route = state?.routes?.[state.index ?? 0];
+  if (route?.name === 'BrushingTimer') return;
+  if (route?.name === 'BrushingMenuMain') return;
+  ref.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [{ name: 'BrushingMenuMain' }],
+    })
   );
 };
 
@@ -140,6 +247,8 @@ const AppTabs: React.FC = () => {
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = React.useState(0);
   const translateX = useSharedValue(0);
+  const leaderboardNavRef = React.useMemo(() => createNavigationContainerRef(), []);
+  const brushingNavRef = React.useMemo(() => createNavigationContainerRef(), []);
 
   const tabs = React.useMemo(
     () => [
@@ -166,6 +275,26 @@ const AppTabs: React.FC = () => {
     [t]
   );
 
+  const brushingTabIndex = React.useMemo(
+    () => tabs.findIndex((tab) => tab.key === 'BrushingMenu'),
+    [tabs]
+  );
+
+  const leaderboardTabIndex = React.useMemo(
+    () => tabs.findIndex((tab) => tab.key === 'Leaderboard'),
+    [tabs]
+  );
+
+  React.useEffect(() => {
+    if (activeIndex !== leaderboardTabIndex || leaderboardTabIndex < 0) return;
+    resetLeaderboardStackToRoot(leaderboardNavRef);
+  }, [activeIndex, leaderboardTabIndex, leaderboardNavRef]);
+
+  React.useEffect(() => {
+    if (activeIndex !== brushingTabIndex || brushingTabIndex < 0) return;
+    resetBrushingStackToMenu(brushingNavRef);
+  }, [activeIndex, brushingTabIndex, brushingNavRef]);
+
   React.useEffect(() => {
     translateX.value = -activeIndex * width;
   }, [activeIndex, width, translateX]);
@@ -179,9 +308,18 @@ const AppTabs: React.FC = () => {
   const jumpToTab = React.useCallback(
     (key: AppTabKey) => {
       const idx = tabs.findIndex((tab) => tab.key === key);
-      if (idx >= 0) jumpTo(idx);
+      if (idx < 0) return;
+      if (key === 'Leaderboard' && activeIndex === idx) {
+        resetLeaderboardStackToRoot(leaderboardNavRef);
+        return;
+      }
+      if (key === 'BrushingMenu' && activeIndex === idx) {
+        resetBrushingStackToMenu(brushingNavRef);
+        return;
+      }
+      jumpTo(idx);
     },
-    [tabs, jumpTo]
+    [tabs, jumpTo, activeIndex, leaderboardNavRef, brushingNavRef]
   );
 
   const panGesture = Gesture.Pan()
@@ -208,14 +346,28 @@ const AppTabs: React.FC = () => {
 
   return (
     <TabJumpContext.Provider value={{ jumpToTab }}>
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: Platform.OS === 'ios' ? IOS_GROUPED : colors.background,
+      }}
+    >
       <GestureDetector gesture={panGesture}>
         <View style={{ flex: 1, overflow: 'hidden' }}>
           <Animated.View style={[{ flexDirection: 'row', flex: 1 }, pagerStyle]}>
             {tabs.map((tab) => (
               <View key={tab.key} style={{ width, flex: 1 }}>
                 <NavigationIndependentTree>
-                  <NavigationContainer theme={DefaultTheme}>
+                  <NavigationContainer
+                    ref={
+                      tab.key === 'Leaderboard'
+                        ? leaderboardNavRef
+                        : tab.key === 'BrushingMenu'
+                          ? brushingNavRef
+                          : undefined
+                    }
+                    theme={DefaultTheme}
+                  >
                     {tab.render()}
                   </NavigationContainer>
                 </NavigationIndependentTree>
@@ -241,7 +393,17 @@ const AppTabs: React.FC = () => {
               key={tab.key}
               activeOpacity={0.9}
               style={styles.tabButton}
-              onPress={() => jumpTo(index)}
+              onPress={() => {
+                if (tab.key === 'Leaderboard' && activeIndex === index) {
+                  resetLeaderboardStackToRoot(leaderboardNavRef);
+                  return;
+                }
+                if (tab.key === 'BrushingMenu' && activeIndex === index) {
+                  resetBrushingStackToMenu(brushingNavRef);
+                  return;
+                }
+                jumpTo(index);
+              }}
             >
               {tab.icon(focused)}
               <Text

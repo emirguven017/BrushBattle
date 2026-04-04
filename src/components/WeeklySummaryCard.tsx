@@ -15,13 +15,16 @@ interface WeeklySummaryCardProps {
   championName?: string;
   weeklyRankings?: WeeklyRanking[];
   currentUserId?: string;
+  /** iOS Home: iç içe beyaz kart yerine gruplanmış grup içinde düz yerleşim */
+  embedded?: boolean;
 }
 
 export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
   myRank,
   championName,
   weeklyRankings = [],
-  currentUserId
+  currentUserId,
+  embedded = false,
 }) => {
   const { t } = useLanguage();
   const myEntry = currentUserId ? weeklyRankings.find((r) => r.userId === currentUserId) : undefined;
@@ -53,20 +56,24 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
   }
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, embedded && styles.cardEmbedded]}>
       <View style={styles.rankRow}>
         <View style={styles.rankLabelWrap}>
           <Ionicons name="trophy-outline" size={15} color={colors.primary} />
           <Text style={styles.rankLabel}>{t('rankThisWeek')}</Text>
         </View>
-        <View style={styles.rankPill}>
-          <Text style={styles.rankPillText}>{myRank ? `#${myRank}` : '-'}</Text>
+        <View style={[styles.rankPill, embedded && styles.rankPillEmbedded]}>
+          <Text style={[styles.rankPillText, embedded && styles.rankPillTextEmbedded]}>
+            {myRank ? `#${myRank}` : '-'}
+          </Text>
         </View>
       </View>
       <Text style={styles.championLine}>{t('currentChampion')}: {championName ?? '-'}</Text>
       {competitionText ? (
-        <View style={styles.competitionBox}>
-          <Text style={styles.competitionText}>{competitionText}</Text>
+        <View style={[styles.competitionBox, embedded && styles.competitionBoxEmbedded]}>
+          <Text style={[styles.competitionText, embedded && styles.competitionTextEmbedded]}>
+            {competitionText}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -81,6 +88,14 @@ const styles = StyleSheet.create({
     borderColor: colors.cardBorder,
     padding: 14,
     marginBottom: 12,
+  },
+  cardEmbedded: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 0,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 0,
   },
   rankRow: {
     flexDirection: 'row',
@@ -112,6 +127,14 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 13
   },
+  rankPillEmbedded: {
+    backgroundColor: 'rgba(60, 60, 67, 0.08)',
+    borderColor: 'rgba(60, 60, 67, 0.12)',
+  },
+  rankPillTextEmbedded: {
+    color: colors.text,
+    fontWeight: '600',
+  },
   championLine: {
     color: colors.text,
     fontWeight: '600',
@@ -134,6 +157,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: colors.accent,
+  },
+  competitionBoxEmbedded: {
+    backgroundColor: 'rgba(60, 60, 67, 0.06)',
+  },
+  competitionTextEmbedded: {
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
 });
 

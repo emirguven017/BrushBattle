@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, headerTitle, ui } from '../utils/colors';
 import { uiStyles } from '../utils/uiStyles';
+import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
@@ -143,14 +144,16 @@ export const GroupScreen: React.FC = () => {
 
   if (!user?.groupId) {
     return (
-      <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
-        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-          <View style={styles.titleBar}>
-            <Text style={styles.title}>{t('groupTitle')}</Text>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+        {!isIosUi ? (
+          <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+            <View style={styles.titleBar}>
+              <Text style={styles.title}>{t('groupTitle')}</Text>
+            </View>
           </View>
-        </View>
+        ) : null}
         <ScrollView
-          style={styles.emptyScroll}
+          style={[styles.emptyScroll, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
           contentContainerStyle={[styles.empty, uiStyles.content]}
           keyboardShouldPersistTaps="handled"
         >
@@ -221,13 +224,15 @@ export const GroupScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
-        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-          <View style={styles.titleBar}>
-            <Text style={styles.title}>{t('groupTitle')}</Text>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+        {!isIosUi ? (
+          <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+            <View style={styles.titleBar}>
+              <Text style={styles.title}>{t('groupTitle')}</Text>
+            </View>
           </View>
-        </View>
-        <View style={styles.center}>
+        ) : null}
+        <View style={[styles.center, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
@@ -235,14 +240,18 @@ export const GroupScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.wrapper, { backgroundColor: colors.primary }]}>
-      <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
-        <View style={styles.titleBar}>
-          <Text style={styles.title}>{t('groupTitle')}</Text>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      {!isIosUi ? (
+        <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
+          <View style={styles.titleBar}>
+            <Text style={styles.title}>{t('groupTitle')}</Text>
+          </View>
         </View>
-      </View>
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-
+      ) : null}
+    <ScrollView
+      style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+      contentContainerStyle={styles.content}
+    >
       {error && (
         <View style={styles.errorBox}>
           <View style={styles.errorRow}>

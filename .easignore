@@ -1,0 +1,4 @@
+# EAS'e yüklenen arşivi küçültür; gereksiz / büyük klasörler Install aşamasını etkileyebilir
+memory-bank-mcp
+.cursor
+**/.DS_Store
