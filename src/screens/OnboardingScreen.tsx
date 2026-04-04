@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, headerTitle } from '../utils/colors';
-import { IOS_GROUPED_BG, iosScreenTitleText, isIosUi } from '../utils/iosUi';
+import { type Colors, headerTitle } from '../utils/colors';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
@@ -12,6 +13,9 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 export const OnboardingScreen: React.FC = () => {
+  const colors = useColors();
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { user, refreshUser } = useAuth();
@@ -56,7 +60,7 @@ export const OnboardingScreen: React.FC = () => {
     <KeyboardAvoidingView
       style={[
         styles.wrapper,
-        { backgroundColor: isIosUi ? IOS_GROUPED_BG : colors.primary },
+        { backgroundColor: isIosUi ? colors.iosGroupedBg : colors.primary },
       ]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
@@ -64,16 +68,16 @@ export const OnboardingScreen: React.FC = () => {
       <View
         style={[
           styles.greenHeader,
-          isIosUi && { backgroundColor: IOS_GROUPED_BG },
+          isIosUi && { backgroundColor: colors.iosGroupedBg },
           { paddingTop: insets.top },
         ]}
       >
-        <View style={[styles.titleBar, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
-          <Text style={[styles.title, isIosUi && iosScreenTitleText]}>{t('welcomeTitle')}</Text>
+        <View style={[styles.titleBar, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+          <Text style={[styles.title, isIosUi && ios.iosScreenTitleText]}>{t('welcomeTitle')}</Text>
         </View>
       </View>
       <ScrollView
-        style={[styles.scrollView, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+        style={[styles.scrollView, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -226,7 +230,7 @@ export const OnboardingScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1 },
   greenHeader: { backgroundColor: colors.primary },
   scrollView: { flex: 1, backgroundColor: colors.background },

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 interface LeaderboardItemProps {
@@ -22,6 +23,8 @@ export const LeaderboardItem: React.FC<LeaderboardItemProps> = ({
   isCurrentUser,
   completedToday
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
 
   return (
@@ -50,7 +53,7 @@ export const LeaderboardItem: React.FC<LeaderboardItemProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',

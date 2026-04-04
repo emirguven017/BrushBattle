@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 
 type PrettyModalVariant = 'info' | 'warning';
 
@@ -23,6 +24,9 @@ export const PrettyModal: React.FC<PrettyModalProps> = ({
   onClose,
   variant = 'info',
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const icon = variant === 'warning' ? '⏳' : 'ℹ️';
   const tint = variant === 'warning' ? colors.warning : colors.primary;
   const tintBg = variant === 'warning' ? colors.warningLight : colors.successLight;
@@ -50,7 +54,7 @@ export const PrettyModal: React.FC<PrettyModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -99,4 +103,3 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
-

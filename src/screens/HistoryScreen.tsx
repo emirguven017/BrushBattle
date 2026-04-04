@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,9 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, headerTitle, ui } from '../utils/colors';
-import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
+import { type Colors, headerTitle, ui } from '../utils/colors';
+import { isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,6 +24,8 @@ import {
 import { dateKey } from '../utils/date';
 
 export const HistoryScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -102,7 +105,7 @@ export const HistoryScreen: React.FC = () => {
     <View
       style={[
         styles.container,
-        { backgroundColor: isIosUi ? IOS_GROUPED_BG : colors.primary },
+        { backgroundColor: isIosUi ? colors.iosGroupedBg : colors.primary },
       ]}
     >
       {!isIosUi ? (
@@ -113,7 +116,7 @@ export const HistoryScreen: React.FC = () => {
         </View>
       ) : null}
 
-      <View style={{ flex: 1, backgroundColor: isIosUi ? IOS_GROUPED_BG : colors.background }}>
+      <View style={{ flex: 1, backgroundColor: isIosUi ? colors.iosGroupedBg : colors.background }}>
       <CalendarView
         days={days}
         currentMonth={currentMonth}
@@ -261,7 +264,7 @@ export const HistoryScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   container: { flex: 1 },
   greenHeader: { backgroundColor: colors.primary },
   titleBar: {

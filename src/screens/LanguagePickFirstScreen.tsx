@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import CountryFlag from 'react-native-country-flag';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
 import { AppBranding } from '../components/AppBranding';
 import { useLanguage } from '../context/LanguageContext';
+import { useColors } from '../context/ThemeContext';
 import {
   FIRST_RUN_LANGUAGE_DONE_KEY,
   firstRunLanguageAccountDoneKey,
@@ -26,6 +27,8 @@ export const LanguagePickFirstScreen: React.FC<LanguagePickFirstScreenProps> = (
   mode = 'device',
   userId,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { t, setLanguage } = useLanguage();
 
@@ -86,7 +89,7 @@ export const LanguagePickFirstScreen: React.FC<LanguagePickFirstScreenProps> = (
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,

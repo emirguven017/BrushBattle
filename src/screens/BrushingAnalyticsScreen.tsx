@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
-import { colors, ui } from '../utils/colors';
-import { IOS_GROUPED_BG, iosGroupedCard, isIosUi } from '../utils/iosUi';
+import { type Colors, ui } from '../utils/colors';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { dateKey, todayKey } from '../utils/date';
 import {
   computeBrushingInsights,
@@ -49,6 +50,9 @@ const SESSION_ACCENT: Record<SessionType, string> = {
 };
 
 export const BrushingAnalyticsScreen: React.FC = () => {
+  const colors = useColors();
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const [rows, setRows] = useState<DayRow[]>([]);
@@ -164,7 +168,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
 
   if (!user) {
     return (
-      <View style={[styles.center, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      <View style={[styles.center, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
         <Text style={styles.muted}>{t('somethingWrong')}</Text>
       </View>
     );
@@ -172,7 +176,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={[styles.center, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      <View style={[styles.center, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -180,7 +184,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
 
   return (
     <ScrollView
-      style={[styles.scroll, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+      style={[styles.scroll, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
       contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
       refreshControl={
         <RefreshControl
@@ -194,7 +198,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
       <Text style={styles.screenTitle}>{t('brushingAnalyticsTitle')}</Text>
       <Text style={styles.screenSubtitle}>{t('brushingAnalyticsSubtitle')}</Text>
 
-      <View style={[styles.summaryRow, isIosUi && iosGroupedCard]}>
+      <View style={[styles.summaryRow, isIosUi && ios.iosGroupedCard]}>
         <View style={styles.summaryCell}>
           <View style={styles.summaryIconWrap}>
             <Ionicons name="analytics" size={22} color={colors.primary} />
@@ -215,7 +219,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
       {insights.typical.length > 0 || insights.late.length > 0 ? (
         <View style={styles.insightsWrap}>
           {insights.typical.length > 0 ? (
-            <View style={[styles.insightCard, isIosUi && iosGroupedCard]}>
+            <View style={[styles.insightCard, isIosUi && ios.iosGroupedCard]}>
               <View style={styles.insightCardHead}>
                 <View style={styles.insightIconCircle}>
                   <Ionicons name="time" size={20} color={colors.primary} />
@@ -243,7 +247,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
           ) : null}
 
           {insights.late.map((sug) => (
-            <View key={sug.type} style={[styles.insightCard, styles.insightCardAccent, isIosUi && iosGroupedCard]}>
+            <View key={sug.type} style={[styles.insightCard, styles.insightCardAccent, isIosUi && ios.iosGroupedCard]}>
               <View style={styles.insightCardHead}>
                 <View style={[styles.insightIconCircle, styles.insightIconWarm]}>
                   <Ionicons name="bulb" size={20} color="#C27C1A" />
@@ -294,7 +298,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
             key={row.dateKey}
             style={[
               styles.dayCard,
-              isIosUi && iosGroupedCard,
+              isIosUi && ios.iosGroupedCard,
               row.isToday && styles.dayCardToday,
               perfect && styles.dayCardPerfect,
             ]}
@@ -418,7 +422,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.background },
   content: { padding: ui.screenPadding, paddingBottom: 40 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
@@ -492,7 +496,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  insightIconWarm: { backgroundColor: '#FEF3E2' },
+  insightIconWarm: { backgroundColor: colors.warningLight },
   insightHeadText: { flex: 1, minWidth: 0 },
   insightCardTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
   insightCardSub: { fontSize: 12, color: colors.muted, marginTop: 2, lineHeight: 16 },
@@ -560,11 +564,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   dayCardToday: {
-    borderColor: colors.primary + '55',
-    backgroundColor: colors.white,
+    borderColor: colors.primary + '88',
+    borderWidth: 1.5,
+    backgroundColor: colors.card,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 3,
   },

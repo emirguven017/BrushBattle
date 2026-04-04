@@ -7,14 +7,19 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
+  Linking,
+  Platform,
+  AppState,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import CountryFlag from 'react-native-country-flag';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TimePicker24 } from '../components/TimePicker24';
-import { colors, headerTitle, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
-import { IOS_GROUPED_BG, iosGroupedCard, iosSectionLabelText, isIosUi } from '../utils/iosUi';
+import { type Colors, headerTitle, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { useColors, useTheme, type ThemeMode } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useIntro } from '../context/IntroContext';
@@ -28,8 +33,16 @@ import { WeeklyRewardService } from '../services/weeklyRewardService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
 import { AppConfirmModal } from '../components/AppConfirmModal';
 
+const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'system'];
+
 export const SettingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const { themeMode, setThemeMode } = useTheme();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { user, refreshUser, logOut } = useAuth();
   const { t, language, setLanguage } = useLanguage();
   const { requestShowIntroAgain } = useIntro();
@@ -48,6 +61,42 @@ export const SettingsScreen: React.FC = () => {
   const [initialToothbrushIntervalDays, setInitialToothbrushIntervalDays] = useState<30 | 45 | 60>(45);
   const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  const checkNotifPermission = useCallback(() => {
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      setNotificationsEnabled(status === 'granted');
+    });
+  }, []);
+
+  useEffect(() => {
+    checkNotifPermission();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkNotifPermission();
+    });
+    return () => sub.remove();
+  }, [checkNotifPermission]);
+
+  const handleToggleNotifications = useCallback(async (value: boolean) => {
+    if (value) {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status === 'granted') {
+        setNotificationsEnabled(true);
+      } else {
+        if (Platform.OS === 'ios') {
+          Linking.openURL('app-settings:');
+        } else {
+          Linking.openSettings();
+        }
+      }
+    } else {
+      if (Platform.OS === 'ios') {
+        Linking.openURL('app-settings:');
+      } else {
+        Linking.openSettings();
+      }
+    }
+  }, []);
 
   const initialValues = useMemo(() => ({
     username: user?.username ?? '',
@@ -91,7 +140,6 @@ export const SettingsScreen: React.FC = () => {
     if (!user) return false;
     setSaving(true);
     try {
-      // Bugünün seans saatlerini önce kilitle; kullanıcı saat değiştirerek geçmiş seansı kurtaramasın.
       await BrushingService.lockTodayScheduleForUser(user);
       await updateDoc(doc(db, 'users', user.id), {
         username: username.trim(),
@@ -129,6 +177,19 @@ export const SettingsScreen: React.FC = () => {
       }
       setInitialToothbrushReminderEnabled(toothbrushReminderEnabled);
       setInitialToothbrushIntervalDays(toothbrushIntervalDays);
+
+      const timeChanged =
+        morningTime !== initialValues.morningTime ||
+        middayTime !== initialValues.middayTime ||
+        eveningTime !== initialValues.eveningTime ||
+        dailySessionCount !== initialValues.dailySessionCount;
+      if (timeChanged) {
+        setFeedbackModal({
+          title: t('settingsSaved'),
+          message: t('scheduleChangeNextDay'),
+        });
+      }
+
       return true;
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('couldNotSave');
@@ -147,6 +208,7 @@ export const SettingsScreen: React.FC = () => {
     refreshUser,
     toothbrushReminderEnabled,
     toothbrushIntervalDays,
+    initialValues,
     t,
   ]);
 
@@ -171,8 +233,11 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
+  const themeLabel = (m: ThemeMode) =>
+    m === 'light' ? t('themeLight') : m === 'dark' ? t('themeDark') : t('themeSystem');
+
   return (
-    <View style={[styles.wrapper, uiStyles.screen, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+    <View style={[styles.wrapper, uiStyles.screen, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       {!isIosUi ? (
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
@@ -181,15 +246,15 @@ export const SettingsScreen: React.FC = () => {
         </View>
       ) : null}
     <ScrollView
-      style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+      style={[styles.container, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
       contentContainerStyle={[
         styles.content,
         uiStyles.content,
         isIosUi && { paddingHorizontal: 16 },
       ]}
     >
-      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('language')}</Text>
-      <View style={[styles.card, isIosUi && iosGroupedCard]}>
+      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('language')}</Text>
+      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
         <View style={styles.languageRow}>
           <TouchableOpacity
             style={[styles.langBtn, language === 'tr' && styles.langBtnActive]}
@@ -216,8 +281,19 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
-      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('brushingMenu')}</Text>
-      <View style={[styles.card, isIosUi && iosGroupedCard]}>
+      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('settings')}</Text>
+      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
+        <Text style={styles.label}>{t('username')}</Text>
+        <TextInput
+          style={[uiStyles.input]}
+          value={username}
+          onChangeText={setUsername}
+          placeholder={t('usernamePlaceholder')}
+          placeholderTextColor={colors.muted}
+        />
+      </View>
+
+      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
         <Text style={styles.label}>{t('wwPerDayTitle')}</Text>
         <View style={styles.intervalRow}>
           {[1, 2, 3].map((count) => (
@@ -240,10 +316,92 @@ export const SettingsScreen: React.FC = () => {
             </TouchableOpacity>
           ))}
         </View>
+
+        <View style={{ marginTop: 16 }}>
+          <Text style={styles.label}>{t('morningTime')}</Text>
+          <TouchableOpacity
+            style={styles.timeButton}
+            onPress={() => setShowMorningPicker(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.timeButtonContent}>
+              <Ionicons name="sunny-outline" size={20} color={colors.text} />
+              <Text style={styles.timeButtonText}> {morningTime}</Text>
+            </View>
+            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+          </TouchableOpacity>
+          {showMorningPicker && (
+            <View style={styles.pickerContainer}>
+              <TimePicker24 value={morningTime} onChange={setMorningTime} />
+              <TouchableOpacity
+                style={styles.pickerDoneBtn}
+                onPress={() => setShowMorningPicker(false)}
+              >
+                <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        {dailySessionCount === 3 && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.label}>{t('middayTime')}</Text>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => setShowMiddayPicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.timeButtonContent}>
+                <Ionicons name="sunny-outline" size={20} color={colors.text} />
+                <Text style={styles.timeButtonText}> {middayTime}</Text>
+              </View>
+              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+            </TouchableOpacity>
+            {showMiddayPicker && (
+              <View style={styles.pickerContainer}>
+                <TimePicker24 value={middayTime} onChange={setMiddayTime} />
+                <TouchableOpacity
+                  style={styles.pickerDoneBtn}
+                  onPress={() => setShowMiddayPicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
+        {dailySessionCount >= 2 && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.label}>{t('eveningTime')}</Text>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => setShowEveningPicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.timeButtonContent}>
+                <Ionicons name="moon-outline" size={20} color={colors.text} />
+                <Text style={styles.timeButtonText}> {eveningTime}</Text>
+              </View>
+              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+            </TouchableOpacity>
+            {showEveningPicker && (
+              <View style={styles.pickerContainer}>
+                <TimePicker24 value={eveningTime} onChange={setEveningTime} />
+                <TouchableOpacity
+                  style={styles.pickerDoneBtn}
+                  onPress={() => setShowEveningPicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
-      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('toothbrushReminderTitle')}</Text>
-      <View style={[styles.card, isIosUi && iosGroupedCard]}>
+      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('toothbrushReminderTitle')}</Text>
+      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
         <View style={styles.reminderRow}>
           <Text style={styles.reminderText}>{t('toothbrushReminderEnabled')}</Text>
           <Switch
@@ -253,7 +411,20 @@ export const SettingsScreen: React.FC = () => {
             thumbColor={toothbrushReminderEnabled ? colors.primary : '#f4f3f4'}
           />
         </View>
-        <Text style={styles.reminderHint}>{t('toothbrushReminderHint')}</Text>
+        <View style={[styles.reminderRow, { marginTop: 16, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.cardBorder }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.reminderText}>{t('notificationsLabel')}</Text>
+            <Text style={[styles.reminderHint, { marginTop: 4 }]}>{t('notificationsHint')}</Text>
+          </View>
+          <Switch
+            value={notificationsEnabled}
+            onValueChange={handleToggleNotifications}
+            trackColor={{ false: colors.cardBorder, true: colors.successLight }}
+            thumbColor={notificationsEnabled ? colors.primary : '#f4f3f4'}
+          />
+        </View>
+
+        <Text style={[styles.reminderHint, { marginTop: 12 }]}>{t('toothbrushReminderHint')}</Text>
         <View style={styles.intervalRow}>
           {[30, 45, 60].map((d) => (
             <TouchableOpacity
@@ -279,98 +450,27 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
-      <Text style={[styles.sectionHeader, isIosUi && iosSectionLabelText]}>{t('settings')}</Text>
-      <View style={[styles.card, isIosUi && iosGroupedCard]}>
-        <Text style={styles.label}>{t('username')}</Text>
-        <TextInput
-          style={styles.input}
-          value={username}
-          onChangeText={setUsername}
-          placeholder={t('usernamePlaceholder')}
-          placeholderTextColor={colors.muted}
-        />
-      </View>
-
-      <View style={[styles.card, isIosUi && iosGroupedCard]}>
-        <Text style={styles.label}>{t('morningTime')}</Text>
-        <TouchableOpacity
-          style={styles.timeButton}
-          onPress={() => setShowMorningPicker(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.timeButtonContent}>
-            <Ionicons name="sunny-outline" size={20} color={colors.text} />
-            <Text style={styles.timeButtonText}> {morningTime}</Text>
-          </View>
-          <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-        </TouchableOpacity>
-        {showMorningPicker && (
-          <View style={styles.pickerContainer}>
-            <TimePicker24 value={morningTime} onChange={setMorningTime} />
+      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('appearance')}</Text>
+      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
+        <View style={styles.themeRow}>
+          {THEME_OPTIONS.map((m) => (
             <TouchableOpacity
-              style={styles.pickerDoneBtn}
-              onPress={() => setShowMorningPicker(false)}
+              key={m}
+              style={[styles.themeChip, themeMode === m && styles.themeChipActive]}
+              onPress={() => setThemeMode(m)}
             >
-              <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+              <Ionicons
+                name={m === 'light' ? 'sunny' : m === 'dark' ? 'moon' : 'phone-portrait-outline'}
+                size={16}
+                color={themeMode === m ? colors.primary : colors.muted}
+              />
+              <Text style={[styles.themeChipText, themeMode === m && styles.themeChipTextActive]}>
+                {themeLabel(m)}
+              </Text>
             </TouchableOpacity>
-          </View>
-        )}
+          ))}
+        </View>
       </View>
-
-      {dailySessionCount === 3 && (
-        <View style={[styles.card, isIosUi && iosGroupedCard]}>
-          <Text style={styles.label}>{t('middayTime')}</Text>
-          <TouchableOpacity
-            style={styles.timeButton}
-            onPress={() => setShowMiddayPicker(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.timeButtonContent}>
-              <Ionicons name="sunny-outline" size={20} color={colors.text} />
-              <Text style={styles.timeButtonText}> {middayTime}</Text>
-            </View>
-            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-          </TouchableOpacity>
-          {showMiddayPicker && (
-            <View style={styles.pickerContainer}>
-              <TimePicker24 value={middayTime} onChange={setMiddayTime} />
-              <TouchableOpacity
-                style={styles.pickerDoneBtn}
-                onPress={() => setShowMiddayPicker(false)}
-              >
-                <Text style={styles.pickerDoneText}>{t('ok')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
-      {dailySessionCount >= 2 && (
-        <View style={[styles.card, isIosUi && iosGroupedCard]}>
-          <Text style={styles.label}>{t('eveningTime')}</Text>
-          <TouchableOpacity
-            style={styles.timeButton}
-            onPress={() => setShowEveningPicker(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.timeButtonContent}>
-              <Ionicons name="moon-outline" size={20} color={colors.text} />
-              <Text style={styles.timeButtonText}> {eveningTime}</Text>
-            </View>
-            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-          </TouchableOpacity>
-          {showEveningPicker && (
-            <View style={styles.pickerContainer}>
-              <TimePicker24 value={eveningTime} onChange={setEveningTime} />
-              <TouchableOpacity
-                style={styles.pickerDoneBtn}
-                onPress={() => setShowEveningPicker(false)}
-              >
-              <Text style={styles.pickerDoneText}>{t('ok')}</Text>
-            </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
 
       <TouchableOpacity
         style={[
@@ -422,188 +522,204 @@ export const SettingsScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  wrapper: { flex: 1 },
-  greenHeader: { backgroundColor: colors.primary },
-  container: { flex: 1, backgroundColor: colors.background },
-  content: {},
-  titleBar: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  titleRow: { flexDirection: 'row', alignItems: 'center' },
-  title: {
-    ...headerTitle
-  },
-  langBtnContent: { flexDirection: 'row', alignItems: 'center' },
-  flag: { borderRadius: 2, overflow: 'hidden' },
-  timeButtonContent: { flexDirection: 'row', alignItems: 'center' },
-  sectionHeader: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '700',
-    marginTop: 10,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: ui.radiusLg,
-    padding: ui.cardPadding,
-    marginBottom: 10,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.cardBorder,
-  },
-  languageRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 4
-  },
-  langBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: ui.radiusMd,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.cardBorder,
-    alignItems: 'center',
-    backgroundColor: colors.background
-  },
-  langBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.successLight
-  },
-  langBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.muted
-  },
-  langBtnTextActive: {
-    color: colors.primary
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 8
-  },
-  input: {
-    ...uiStyles.input
-  },
-  timeButton: {
-    borderWidth: ui.borderWidth,
-    borderColor: colors.cardBorder,
-    borderRadius: ui.radiusMd,
-    padding: 14,
-    backgroundColor: colors.background
-  },
-  timeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text
-  },
-  timeButtonHint: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 4
-  },
-  pickerContainer: {
-    marginTop: 8
-  },
-  pickerDoneBtn: {
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    alignItems: 'center'
-  },
-  pickerDoneText: {
-    color: colors.white,
-    fontWeight: '600'
-  },
-  reminderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  reminderText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  reminderHint: {
-    marginTop: 8,
-    fontSize: 12,
-    color: colors.muted,
-    lineHeight: 17,
-  },
-  intervalRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  intervalChip: {
-    flex: 1,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.background,
-    borderRadius: ui.radiusSm,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  intervalChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.successLight,
-  },
-  intervalChipDisabled: {
-    opacity: 0.5,
-  },
-  intervalChipText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.muted,
-  },
-  intervalChipTextActive: {
-    color: colors.primary,
-  },
-  saveBtn: {
-    ...uiStyles.buttonPrimary,
-    borderRadius: ui.radiusMd,
-    alignItems: 'center',
-    marginTop: 12
-  },
-  saveBtnDisabled: {
-    opacity: 0.5
-  },
-  saveBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
-  leaveBtn: {
-    marginTop: 10,
-    padding: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.warning,
-    borderRadius: ui.radiusMd,
-    backgroundColor: colors.card
-  },
-  leaveBtnText: { color: colors.warning, fontSize: 16, fontWeight: '600' },
-  showIntroBtn: {
-    marginTop: 10,
-    padding: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: ui.radiusMd
-  },
-  showIntroBtnText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
-  logoutBtn: {
-    marginTop: 10,
-    backgroundColor: colors.error,
-    borderRadius: ui.radiusMd,
-    padding: 14,
-    alignItems: 'center'
-  },
-  logoutBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' }
-});
+const createStyles = (colors: Colors) =>
+  StyleSheet.create({
+    wrapper: { flex: 1 },
+    greenHeader: { backgroundColor: colors.primary },
+    container: { flex: 1, backgroundColor: colors.background },
+    content: {},
+    titleBar: {
+      backgroundColor: colors.primary,
+      paddingVertical: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    titleRow: { flexDirection: 'row', alignItems: 'center' },
+    title: { ...headerTitle },
+    langBtnContent: { flexDirection: 'row', alignItems: 'center' },
+    flag: { borderRadius: 2, overflow: 'hidden' },
+    timeButtonContent: { flexDirection: 'row', alignItems: 'center' },
+    sectionHeader: {
+      fontSize: 12,
+      color: colors.muted,
+      fontWeight: '700',
+      marginTop: 10,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: ui.radiusLg,
+      padding: ui.cardPadding,
+      marginBottom: 10,
+      borderWidth: ui.borderWidth,
+      borderColor: colors.cardBorder,
+    },
+    themeRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    themeChip: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      borderWidth: ui.borderWidth,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.background,
+      borderRadius: ui.radiusSm,
+      paddingVertical: 10,
+    },
+    themeChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.successLight,
+    },
+    themeChipText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.muted,
+    },
+    themeChipTextActive: {
+      color: colors.primary,
+    },
+    languageRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 4,
+    },
+    langBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      borderRadius: ui.radiusMd,
+      borderWidth: ui.borderWidth,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+      backgroundColor: colors.background,
+    },
+    langBtnActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.successLight,
+    },
+    langBtnText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.muted,
+    },
+    langBtnTextActive: {
+      color: colors.primary,
+    },
+    label: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.muted,
+      marginBottom: 8,
+    },
+    timeButton: {
+      borderWidth: ui.borderWidth,
+      borderColor: colors.cardBorder,
+      borderRadius: ui.radiusMd,
+      padding: 14,
+      backgroundColor: colors.background,
+    },
+    timeButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    timeButtonHint: {
+      fontSize: 12,
+      color: colors.muted,
+      marginTop: 4,
+    },
+    pickerContainer: { marginTop: 8 },
+    pickerDoneBtn: {
+      marginTop: 8,
+      padding: 12,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      alignItems: 'center',
+    },
+    pickerDoneText: { color: colors.white, fontWeight: '600' },
+    reminderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    reminderText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    reminderHint: {
+      marginTop: 8,
+      fontSize: 12,
+      color: colors.muted,
+      lineHeight: 17,
+    },
+    intervalRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 12,
+    },
+    intervalChip: {
+      flex: 1,
+      borderWidth: ui.borderWidth,
+      borderColor: colors.cardBorder,
+      backgroundColor: colors.background,
+      borderRadius: ui.radiusSm,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    intervalChipActive: {
+      borderColor: colors.primary,
+      backgroundColor: colors.successLight,
+    },
+    intervalChipDisabled: { opacity: 0.5 },
+    intervalChipText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.muted,
+    },
+    intervalChipTextActive: { color: colors.primary },
+    saveBtn: {
+      minHeight: ui.buttonHeight,
+      borderRadius: ui.radiusMd,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: ui.spacingLg,
+      marginTop: 12,
+    },
+    saveBtnDisabled: { opacity: 0.5 },
+    saveBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
+    leaveBtn: {
+      marginTop: 10,
+      padding: 14,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.warning,
+      borderRadius: ui.radiusMd,
+      backgroundColor: colors.card,
+    },
+    leaveBtnText: { color: colors.warning, fontSize: 16, fontWeight: '600' },
+    showIntroBtn: {
+      marginTop: 10,
+      padding: 14,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: ui.radiusMd,
+    },
+    showIntroBtnText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
+    logoutBtn: {
+      marginTop: 10,
+      backgroundColor: colors.error,
+      borderRadius: ui.radiusMd,
+      padding: 14,
+      alignItems: 'center',
+    },
+    logoutBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
+  });

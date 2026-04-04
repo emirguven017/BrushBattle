@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import { dateKey, todayKey } from '../utils/date';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -32,6 +33,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onMonthChange,
   onDayPress
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const WEEKDAYS = t('weekdaysShort').split(',');
   const MONTHS = t('months').split(',');
@@ -116,7 +119,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   container: { padding: 16 },
   header: {
     flexDirection: 'row',

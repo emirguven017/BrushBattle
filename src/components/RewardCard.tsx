@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
+import { type Colors, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 const BADGE_ICONS = ['trophy', 'medal', 'medal'] as const;
@@ -13,6 +14,9 @@ interface RewardCardProps {
 }
 
 export const RewardCard: React.FC<RewardCardProps> = ({ rank }) => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const rewardByRank = {
     1: { title: t('reward1'), br: 50, badge: t('weeklyChampionBadge'), buff: t('pointBuff') },
@@ -39,7 +43,7 @@ export const RewardCard: React.FC<RewardCardProps> = ({ rank }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     marginBottom: 8,
   },
@@ -47,4 +51,3 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
   rowText: { fontSize: 13, color: colors.textSecondary, marginLeft: 4 },
 });
-

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 interface StreakCardProps {
@@ -18,6 +19,8 @@ export const StreakCard: React.FC<StreakCardProps> = ({
   rank,
   size = 'large'
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const iconSz = size === 'small' ? 14 : 16;
   return (
@@ -60,7 +63,7 @@ export const StreakCard: React.FC<StreakCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: 20,

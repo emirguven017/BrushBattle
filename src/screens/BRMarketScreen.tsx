@@ -8,9 +8,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
-import { colors, headerTitle, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
-import { IOS_GROUPED_BG, iosGroupedCard, isIosUi } from '../utils/iosUi';
+import { type Colors, headerTitle, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import type { MarketCategory, MarketItemId, User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
@@ -67,6 +68,10 @@ const normalizeMarketError = (
 };
 
 export const BRMarketScreen: React.FC = () => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -182,7 +187,7 @@ export const BRMarketScreen: React.FC = () => {
   if (!user) return null;
 
   return (
-    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       {!isIosUi ? (
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
@@ -191,7 +196,7 @@ export const BRMarketScreen: React.FC = () => {
         </View>
       ) : null}
       <ScrollView
-        style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+        style={[styles.container, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
         contentContainerStyle={[
           styles.content,
           uiStyles.content,
@@ -202,7 +207,7 @@ export const BRMarketScreen: React.FC = () => {
         <InventoryList items={items} />
         <ActiveEffectsList effects={effects} />
 
-        <View style={[styles.tabs, isIosUi && iosGroupedCard, isIosUi && { padding: 4, gap: 4 }]}>
+        <View style={[styles.tabs, isIosUi && ios.iosGroupedCard, isIosUi && { padding: 4, gap: 4 }]}>
           {CATEGORIES.map((c) => (
             <TouchableOpacity
               key={c}
@@ -228,7 +233,7 @@ export const BRMarketScreen: React.FC = () => {
         </View>
 
         {tab === 'attack' && (
-          <View style={[styles.targetBox, isIosUi && iosGroupedCard]}>
+          <View style={[styles.targetBox, isIosUi && ios.iosGroupedCard]}>
             <Text style={styles.targetTitle}>{t('selectTarget')}</Text>
             <View style={styles.targetChips}>
               {members.map((m) => (
@@ -294,7 +299,7 @@ export const BRMarketScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1 },
   greenHeader: { backgroundColor: colors.primary },
   titleBar: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   StyleSheet,
   ScrollView,
   Modal,
+  AppState,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { colors } from '../utils/colors';
-import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
+import { type Colors } from '../utils/colors';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
@@ -29,6 +31,10 @@ const COUNTDOWN_BOUNDARIES = [90, 60, 30] as const;
 const COUNTDOWN_DURATION_MS = 700;
 
 export const BrushingTimerScreen: React.FC = () => {
+  const colors = useColors();
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { user, refreshUser } = useAuth();
   const { t } = useLanguage();
   const nav = useNavigation();
@@ -53,9 +59,22 @@ export const BrushingTimerScreen: React.FC = () => {
   const [rewardModal, setRewardModal] = useState<{ points: number; br: number } | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
 
+  const timerStartRef = useRef<number>(Date.now());
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    if (!session || finished) return;
+    const unsubscribe = nav.addListener('beforeRemove', (e: { preventDefault: () => void; data: { action: { type: string } } }) => {
+      if (finished) return;
+      e.preventDefault();
+    });
+    return unsubscribe;
+  }, [nav, session, finished]);
+
   useEffect(() => {
     if (!session) return;
     finishedSetRef.current = false;
+    timerStartRef.current = Date.now();
     setSeconds(TOTAL_DURATION_SEC);
     setFinished(false);
     setDisplayZone(0);
@@ -64,7 +83,29 @@ export const BrushingTimerScreen: React.FC = () => {
     setRewardModal(null);
   }, [session?.id]);
 
-  // Main timer: tek interval (seconds bağımlılığı yok — gereksiz yeniden kurulum yok)
+  const syncTimerWithRealTime = useCallback(() => {
+    const elapsed = Math.floor((Date.now() - timerStartRef.current) / 1000);
+    const remaining = Math.max(0, TOTAL_DURATION_SEC - elapsed);
+    setSeconds(remaining);
+    if (remaining <= 0 && !finishedSetRef.current) {
+      finishedSetRef.current = true;
+      setFinished(true);
+      if (user && session) {
+        NotificationService.cancelSessionReminders(user.id, session.sessionType).catch(() => {});
+      }
+    }
+  }, [user, session]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        syncTimerWithRealTime();
+      }
+      appStateRef.current = nextState;
+    });
+    return () => sub.remove();
+  }, [syncTimerWithRealTime]);
+
   useEffect(() => {
     if (!session) return;
     const timer = setInterval(() => {
@@ -143,6 +184,7 @@ export const BrushingTimerScreen: React.FC = () => {
 
   const handleRestart = () => {
     finishedSetRef.current = false;
+    timerStartRef.current = Date.now();
     setSeconds(TOTAL_DURATION_SEC);
     setFinished(false);
     setDisplayZone(0);
@@ -180,14 +222,14 @@ export const BrushingTimerScreen: React.FC = () => {
 
   if (!session) {
     return (
-      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
         <Text style={styles.error}>{t('sessionNotFound')}</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       <Modal
         visible={rewardModal !== null}
         transparent
@@ -294,7 +336,7 @@ export const BrushingTimerScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: colors.background },
   container: {
     flex: 1,

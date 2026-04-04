@@ -14,8 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { colors } from '../utils/colors';
-import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
+import { type Colors } from '../utils/colors';
+import { isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { NotificationService } from '../services/NotificationService';
 import {
@@ -49,6 +50,8 @@ export const WelcomeWizardScreen: React.FC<WelcomeWizardScreenProps> = ({
   mode = 'device',
   userId,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const [step, setStep] = useState(0);
@@ -634,7 +637,7 @@ export const WelcomeWizardScreen: React.FC<WelcomeWizardScreenProps> = ({
       style={[
         styles.root,
         { paddingTop: insets.top },
-        isIosUi && { backgroundColor: IOS_GROUPED_BG },
+        isIosUi && { backgroundColor: colors.iosGroupedBg },
       ]}
     >
       <View style={styles.topBar}>
@@ -687,7 +690,7 @@ export const WelcomeWizardScreen: React.FC<WelcomeWizardScreenProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   topBar: { paddingHorizontal: 8, minHeight: 44, justifyContent: 'center' },
   backBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8 },

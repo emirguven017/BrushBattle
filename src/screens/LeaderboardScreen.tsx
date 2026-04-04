@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { colors, headerTitle, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
-import { IOS_GROUPED_BG, iosSectionLabelText, isIosUi } from '../utils/iosUi';
+import { type Colors, headerTitle, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { LeaderboardService } from '../services/LeaderboardService';
@@ -19,6 +20,11 @@ import { LeaderboardItem, RewardCard } from '../components';
 import type { LeaderboardRanking } from '../types';
 
 export const LeaderboardScreen: React.FC = () => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -46,7 +52,7 @@ export const LeaderboardScreen: React.FC = () => {
 
   if (!user?.groupId) {
     return (
-      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
         {!isIosUi ? (
           <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
             <View style={styles.titleBar}>
@@ -54,7 +60,7 @@ export const LeaderboardScreen: React.FC = () => {
             </View>
           </View>
         ) : null}
-        <View style={[styles.empty, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+        <View style={[styles.empty, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
           <Text style={styles.emptyText}>{t('joinGroupFirst')}</Text>
         </View>
       </View>
@@ -62,7 +68,7 @@ export const LeaderboardScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       {!isIosUi ? (
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
@@ -70,7 +76,7 @@ export const LeaderboardScreen: React.FC = () => {
           </View>
         </View>
       ) : null}
-      <View style={[styles.content, uiStyles.content, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      <View style={[styles.content, uiStyles.content, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       <View style={styles.rewardWrap}>
         <View style={styles.rewardCard}>
           <RewardCard rank={1} />
@@ -86,7 +92,7 @@ export const LeaderboardScreen: React.FC = () => {
         style={[
           uiStyles.sectionTitle,
           styles.rankingTitle,
-          isIosUi && iosSectionLabelText,
+          isIosUi && ios.iosSectionLabelText,
         ]}
       >
         {t('ranking')}
@@ -137,7 +143,7 @@ export const LeaderboardScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: colors.background },
   greenHeader: { backgroundColor: colors.primary },
   container: { flex: 1, backgroundColor: colors.background },
@@ -187,8 +193,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  emptyText: { fontSize: 16, color: colors.muted }
-  ,
+  emptyText: { fontSize: 16, color: colors.muted },
   rowWrap: {
     position: 'relative',
     marginBottom: 6

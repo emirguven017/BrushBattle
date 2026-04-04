@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Share } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 interface InviteCardProps {
@@ -16,6 +17,8 @@ export const InviteCard: React.FC<InviteCardProps> = ({
   inviteCode,
   onInvite
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const androidStoreLink = 'https://play.google.com/store/apps/details?id=com.brushbattle';
 
@@ -52,7 +55,7 @@ export const InviteCard: React.FC<InviteCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: 20,

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, AppState } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type { ZoneIndex } from '../../utils/brushingZones';
 
@@ -15,6 +15,7 @@ const zoneVideos = [
 ];
 
 export const ToothGuide: React.FC<ToothGuideProps> = ({ activeZone }) => {
+  const appStateRef = useRef(AppState.currentState);
   const player = useVideoPlayer(zoneVideos[0], (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = true;
@@ -25,6 +26,26 @@ export const ToothGuide: React.FC<ToothGuideProps> = ({ activeZone }) => {
     player.replace(zoneVideos[activeZone], true);
     player.currentTime = 0;
     player.play();
+  }, [activeZone, player]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      const wasBackground = /inactive|background/.test(appStateRef.current);
+      if (wasBackground && nextState === 'active') {
+        // Some devices pause/stall video playback after app resume.
+        player.replace(zoneVideos[activeZone], true);
+        player.currentTime = 0;
+        player.play();
+      } else if (/inactive|background/.test(nextState)) {
+        player.pause();
+      }
+      appStateRef.current = nextState;
+    });
+
+    return () => {
+      sub.remove();
+      player.pause();
+    };
   }, [activeZone, player]);
 
   return (

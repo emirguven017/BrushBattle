@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import type { ActiveEffect } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -19,9 +20,10 @@ const leftTime = (expiresAt?: number) => {
 };
 
 export const ActiveEffectsList: React.FC<ActiveEffectsListProps> = ({ effects }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const effectLabel = (type: string) => {
-    // Market isimleri ile birebir uyumlu basliklar
     if (type === 'frozen') return t('marketItemFreezeTitle');
     if (type === 'shield') return t('marketItemShieldTitle');
     if (type === 'streak_saver') return t('marketItemStreakSaverTitle');
@@ -82,7 +84,7 @@ export const ActiveEffectsList: React.FC<ActiveEffectsListProps> = ({ effects })
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -151,4 +153,3 @@ const styles = StyleSheet.create({
   emptyWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
   empty: { color: colors.muted, fontSize: 13, fontWeight: '600' },
 });
-

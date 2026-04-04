@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Image, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
-import { colors, headerTitle } from '../utils/colors';
+import { type Colors, headerTitle } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 
 const LOGO = require('../../assets/images/app-logo.png');
 
@@ -25,6 +26,9 @@ export const AppBranding: React.FC<AppBrandingProps> = ({
   style,
   titleStyle,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const onBrand = tone === 'onBrand';
   return (
     <View style={[styles.wrap, style]}>
@@ -55,7 +59,7 @@ export const AppBranding: React.FC<AppBrandingProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrap: {
     alignItems: 'center',
   },

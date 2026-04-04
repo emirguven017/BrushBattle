@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 
 interface TimePicker24Props {
   value: string;
@@ -10,18 +11,19 @@ interface TimePicker24Props {
 const pad = (n: number) => n.toString().padStart(2, '0');
 
 export const TimePicker24: React.FC<TimePicker24Props> = ({ value, onChange }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [h, m] = value.split(':').map((x) => parseInt(x, 10) || 0);
   const hour = Math.min(23, Math.max(0, h));
   const minute = Math.min(59, Math.max(0, m));
 
   const setHour = (v: number) => {
-    // Wrap hour in 24h cycle: -1 -> 23, 24 -> 00
     const newH = ((v % 24) + 24) % 24;
     onChange(`${pad(newH)}:${pad(minute)}`);
   };
 
   const setMinute = (v: number) => {
-    // Wrap minute in 60m cycle: -1 -> 59, 60 -> 00
     const newM = ((v % 60) + 60) % 60;
     onChange(`${pad(hour)}:${pad(newM)}`);
   };
@@ -69,7 +71,7 @@ export const TimePicker24: React.FC<TimePicker24Props> = ({ value, onChange }) =
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

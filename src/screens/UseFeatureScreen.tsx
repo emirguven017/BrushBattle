@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, headerTitle } from '../utils/colors';
-import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
+import { type Colors, headerTitle } from '../utils/colors';
+import { isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useTabJump } from '../context/TabJumpContext';
@@ -44,6 +45,8 @@ const SELF_ITEM_TO_EFFECT: Partial<Record<MarketItemId, EffectType>> = {
 };
 
 export const UseFeatureScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -295,7 +298,7 @@ export const UseFeatureScreen: React.FC = () => {
   if (!user) return null;
 
   return (
-    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       {!isIosUi ? (
         <View style={[styles.header, { paddingTop: insets.top }]}>
           <Text style={styles.title}>{t('useFeatureTitle')}</Text>
@@ -304,7 +307,7 @@ export const UseFeatureScreen: React.FC = () => {
       ) : null}
 
       <ScrollView
-        style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+        style={[styles.container, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
         contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
       >
         {isIosUi && subtitleText ? (
@@ -404,7 +407,7 @@ export const UseFeatureScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: colors.background },
   header: {
     backgroundColor: colors.primary,

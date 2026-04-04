@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 
 interface AppConfirmModalProps {
   visible: boolean;
@@ -20,26 +21,31 @@ export const AppConfirmModal: React.FC<AppConfirmModalProps> = ({
   confirmText,
   onCancel,
   onConfirm,
-}) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-    <View style={styles.backdrop}>
-      <View style={styles.card}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
-        <View style={styles.buttons}>
-          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.85}>
-            <Text style={styles.cancelText}>{cancelText}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.confirmBtn} onPress={onConfirm} activeOpacity={0.85}>
-            <Text style={styles.confirmText}>{confirmText}</Text>
-          </TouchableOpacity>
+}) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.backdrop}>
+        <View style={styles.card}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.message}>{message}</Text>
+          <View style={styles.buttons}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.85}>
+              <Text style={styles.cancelText}>{cancelText}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.confirmBtn} onPress={onConfirm} activeOpacity={0.85}>
+              <Text style={styles.confirmText}>{confirmText}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
-  </Modal>
-);
+    </Modal>
+  );
+};
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -99,4 +105,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

@@ -18,6 +18,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 
 import { AuthProvider } from './src/context/AuthContext';
 import { LanguageProvider, useLanguage } from './src/context/LanguageContext';
 import { IntroProvider, useIntro } from './src/context/IntroContext';
+import { ThemeProvider, useColors } from './src/context/ThemeContext';
 import { useAuth } from './src/hooks/useAuth';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { IntroScreen } from './src/screens/IntroScreen';
@@ -33,7 +34,7 @@ import { HistoryScreen } from './src/screens/HistoryScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { BRMarketScreen } from './src/screens/BRMarketScreen';
 import { UseFeatureScreen } from './src/screens/UseFeatureScreen';
-import { colors, headerTitle } from './src/utils/colors';
+import { colors, headerTitle, type Colors } from './src/utils/colors';
 import { GroupService } from './src/services/GroupService';
 import { NotificationService } from './src/services/NotificationService';
 import { NotificationInboxService } from './src/services/notificationInboxService';
@@ -54,52 +55,44 @@ const Stack = createNativeStackNavigator();
 const PENDING_INVITE_KEY = '@brush_battle_pending_invite_code';
 
 
-const headerOptions = {
-  headerStyle: { backgroundColor: colors.primary },
-  headerTintColor: colors.white,
+const makeHeaderOptions = (c: Colors) => ({
+  headerStyle: { backgroundColor: c.primary },
+  headerTintColor: c.white,
   headerTitleAlign: 'center' as const,
-  contentStyle: { backgroundColor: colors.background },
+  contentStyle: { backgroundColor: c.background },
   headerTitleStyle: {
     fontSize: headerTitle.fontSize,
-    fontWeight: headerTitle.fontWeight
-  }
-};
+    fontWeight: headerTitle.fontWeight,
+  },
+});
 
-const IOS_GROUPED = '#F2F2F7';
-
-/** iOS: tüm ana sekmelerde Ana Sayfa ile aynı Brush Timer (AppWordmark) başlığı */
-const iosBrushTimerHeaderScreenOptions = (t: (key: string) => string) => ({
+const makeIosBrushTimerHeaderScreenOptions = (t: (key: string) => string, c: Colors) => ({
   title: t('homeHeaderTitle'),
   headerLargeTitle: false,
   headerTitleAlign: 'center' as const,
   headerTitle: () => <AppWordmark name={t('appName')} variant="nav" />,
   headerShadowVisible: false,
-  headerStyle: { backgroundColor: IOS_GROUPED },
+  headerStyle: { backgroundColor: c.iosGroupedBg },
   headerTintColor: '#007AFF',
-  contentStyle: { backgroundColor: IOS_GROUPED },
+  contentStyle: { backgroundColor: c.iosGroupedBg },
 });
 
 const HomeStack: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
+  const hOpts = React.useMemo(() => makeHeaderOptions(c), [c]);
+  const iosOpts = React.useMemo(() => makeIosBrushTimerHeaderScreenOptions(t, c), [t, c]);
   return (
-    <Stack.Navigator screenOptions={headerOptions}>
+    <Stack.Navigator screenOptions={hOpts}>
       <Stack.Screen
         name="HomeMain"
         component={HomeScreen}
-        options={
-          Platform.OS === 'ios'
-            ? iosBrushTimerHeaderScreenOptions(t)
-            : { title: t('homeHeaderTitle') }
-        }
+        options={Platform.OS === 'ios' ? iosOpts : { title: t('homeHeaderTitle') }}
       />
       <Stack.Screen
         name="BrushingTimer"
         component={BrushingTimerScreen}
-        options={
-          Platform.OS === 'ios'
-            ? iosBrushTimerHeaderScreenOptions(t)
-            : { title: t('brushingTime') }
-        }
+        options={Platform.OS === 'ios' ? iosOpts : { title: t('brushingTime') }}
       />
     </Stack.Navigator>
   );
@@ -107,21 +100,18 @@ const HomeStack: React.FC = () => {
 
 const BrushingStack: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
+  const hOpts = React.useMemo(() => makeHeaderOptions(c), [c]);
+  const iosOpts = React.useMemo(() => makeIosBrushTimerHeaderScreenOptions(t, c), [t, c]);
   return (
-    <Stack.Navigator
-      screenOptions={
-        Platform.OS === 'ios' ? iosBrushTimerHeaderScreenOptions(t) : headerOptions
-      }
-    >
+    <Stack.Navigator screenOptions={Platform.OS === 'ios' ? iosOpts : hOpts}>
       <Stack.Screen name="BrushingMenuMain" component={BrushingMenuScreen} />
       <Stack.Screen
         name="BrushingAnalytics"
         component={BrushingAnalyticsScreen}
-        options={
-          Platform.OS === 'ios'
-            ? iosBrushTimerHeaderScreenOptions(t)
-            : { ...headerOptions, title: t('brushingAnalyticsTitle') }
-        }
+        options={Platform.OS === 'ios'
+          ? { ...iosOpts, headerBackVisible: false, headerBackTitle: '' }
+          : { ...hOpts, title: t('brushingAnalyticsTitle') }}
       />
       <Stack.Screen name="BrushingTimer" component={BrushingTimerScreen} />
     </Stack.Navigator>
@@ -130,14 +120,10 @@ const BrushingStack: React.FC = () => {
 
 const LeaderboardStack: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
+  const iosOpts = React.useMemo(() => makeIosBrushTimerHeaderScreenOptions(t, c), [t, c]);
   return (
-    <Stack.Navigator
-      screenOptions={
-        Platform.OS === 'ios'
-          ? iosBrushTimerHeaderScreenOptions(t)
-          : { headerShown: false }
-      }
-    >
+    <Stack.Navigator screenOptions={Platform.OS === 'ios' ? iosOpts : { headerShown: false }}>
       <Stack.Screen name="LeaderboardMain" component={LeaderboardScreen} />
       <Stack.Screen name="UseFeature" component={UseFeatureScreen} />
     </Stack.Navigator>
@@ -146,14 +132,10 @@ const LeaderboardStack: React.FC = () => {
 
 const GroupStack: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
+  const iosOpts = React.useMemo(() => makeIosBrushTimerHeaderScreenOptions(t, c), [t, c]);
   return (
-    <Stack.Navigator
-      screenOptions={
-        Platform.OS === 'ios'
-          ? iosBrushTimerHeaderScreenOptions(t)
-          : { headerShown: false }
-      }
-    >
+    <Stack.Navigator screenOptions={Platform.OS === 'ios' ? iosOpts : { headerShown: false }}>
       <Stack.Screen name="GroupMain" component={GroupScreen} />
     </Stack.Navigator>
   );
@@ -161,14 +143,10 @@ const GroupStack: React.FC = () => {
 
 const BRMarketStack: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
+  const iosOpts = React.useMemo(() => makeIosBrushTimerHeaderScreenOptions(t, c), [t, c]);
   return (
-    <Stack.Navigator
-      screenOptions={
-        Platform.OS === 'ios'
-          ? iosBrushTimerHeaderScreenOptions(t)
-          : { headerShown: false }
-      }
-    >
+    <Stack.Navigator screenOptions={Platform.OS === 'ios' ? iosOpts : { headerShown: false }}>
       <Stack.Screen name="BRMarketMain" component={BRMarketScreen} />
     </Stack.Navigator>
   );
@@ -176,14 +154,10 @@ const BRMarketStack: React.FC = () => {
 
 const HistoryStack: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
+  const iosOpts = React.useMemo(() => makeIosBrushTimerHeaderScreenOptions(t, c), [t, c]);
   return (
-    <Stack.Navigator
-      screenOptions={
-        Platform.OS === 'ios'
-          ? iosBrushTimerHeaderScreenOptions(t)
-          : { headerShown: false }
-      }
-    >
+    <Stack.Navigator screenOptions={Platform.OS === 'ios' ? iosOpts : { headerShown: false }}>
       <Stack.Screen name="HistoryMain" component={HistoryScreen} />
     </Stack.Navigator>
   );
@@ -191,14 +165,10 @@ const HistoryStack: React.FC = () => {
 
 const SettingsStack: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
+  const iosOpts = React.useMemo(() => makeIosBrushTimerHeaderScreenOptions(t, c), [t, c]);
   return (
-    <Stack.Navigator
-      screenOptions={
-        Platform.OS === 'ios'
-          ? iosBrushTimerHeaderScreenOptions(t)
-          : { headerShown: false }
-      }
-    >
+    <Stack.Navigator screenOptions={Platform.OS === 'ios' ? iosOpts : { headerShown: false }}>
       <Stack.Screen name="SettingsMain" component={SettingsScreen} />
     </Stack.Navigator>
   );
@@ -243,6 +213,7 @@ const resetBrushingStackToMenu = (ref: {
 
 const AppTabs: React.FC = () => {
   const { t } = useLanguage();
+  const c = useColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = React.useState(0);
@@ -252,27 +223,26 @@ const AppTabs: React.FC = () => {
 
   const tabs = React.useMemo(
     () => [
-      { key: 'Home', label: t('home'), render: () => <HomeStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={focused ? colors.primary : colors.muted} /> },
-      { key: 'Group', label: t('group'), render: () => <GroupStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={focused ? colors.primary : colors.muted} /> },
-      { key: 'Leaderboard', label: t('score'), render: () => <LeaderboardStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={focused ? colors.primary : colors.muted} /> },
+      { key: 'Home', label: t('home'), render: () => <HomeStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={focused ? c.primary : c.muted} /> },
+      { key: 'Group', label: t('group'), render: () => <GroupStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={focused ? c.primary : c.muted} /> },
+      { key: 'Leaderboard', label: t('score'), render: () => <LeaderboardStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'trophy' : 'trophy-outline'} size={22} color={focused ? c.primary : c.muted} /> },
       {
         key: 'BrushingMenu',
         label: t('brushingMenu'),
         render: () => <BrushingStack />,
         icon: (focused: boolean) => (
-          <View style={[styles.brushFab, { borderColor: focused ? colors.primary : colors.cardBorder }]}>
-            {/* Yeşil dolgu + beyaz ikon: vektör rengi bazı cihazlarda uygulanmadığı için bu düzen her zaman okunur */}
-            <View style={styles.brushFabInner}>
-              <MaterialCommunityIcons name="toothbrush" size={32} color={colors.white} />
+          <View style={[tabStyles.brushFab, { borderColor: focused ? c.primary : c.cardBorder, backgroundColor: c.card }]}>
+            <View style={tabStyles.brushFabInner}>
+              <MaterialCommunityIcons name="toothbrush" size={32} color={c.white} />
             </View>
           </View>
         ),
       },
-      { key: 'BRMarket', label: t('market'), render: () => <BRMarketStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'cart' : 'cart-outline'} size={22} color={focused ? colors.primary : colors.muted} /> },
-      { key: 'History', label: t('history'), render: () => <HistoryStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={focused ? colors.primary : colors.muted} /> },
-      { key: 'Settings', label: t('settings'), render: () => <SettingsStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'settings' : 'settings-outline'} size={22} color={focused ? colors.primary : colors.muted} /> },
+      { key: 'BRMarket', label: t('market'), render: () => <BRMarketStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'cart' : 'cart-outline'} size={22} color={focused ? c.primary : c.muted} /> },
+      { key: 'History', label: t('history'), render: () => <HistoryStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={focused ? c.primary : c.muted} /> },
+      { key: 'Settings', label: t('settings'), render: () => <SettingsStack />, icon: (focused: boolean) => <Ionicons name={focused ? 'settings' : 'settings-outline'} size={22} color={focused ? c.primary : c.muted} /> },
     ],
-    [t]
+    [t, c]
   );
 
   const brushingTabIndex = React.useMemo(
@@ -344,12 +314,28 @@ const AppTabs: React.FC = () => {
     transform: [{ translateX: translateX.value }],
   }));
 
+  const tabTheme = React.useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        primary: c.primary,
+        background: c.background,
+        card: c.card,
+        text: c.text,
+        border: c.cardBorder,
+        notification: c.error,
+      },
+    }),
+    [c],
+  );
+
   return (
     <TabJumpContext.Provider value={{ jumpToTab }}>
     <View
       style={{
         flex: 1,
-        backgroundColor: Platform.OS === 'ios' ? IOS_GROUPED : colors.background,
+        backgroundColor: Platform.OS === 'ios' ? c.iosGroupedBg : c.background,
       }}
     >
       <GestureDetector gesture={panGesture}>
@@ -366,7 +352,7 @@ const AppTabs: React.FC = () => {
                           ? brushingNavRef
                           : undefined
                     }
-                    theme={DefaultTheme}
+                    theme={tabTheme}
                   >
                     {tab.render()}
                   </NavigationContainer>
@@ -379,8 +365,10 @@ const AppTabs: React.FC = () => {
 
       <View
         style={[
-          styles.bottomBar,
+          tabStyles.bottomBar,
           {
+            backgroundColor: c.tabBarBg,
+            borderTopColor: c.cardBorder,
             paddingBottom: Math.max(insets.bottom, 8),
             height: 56 + Math.max(insets.bottom, 8),
           },
@@ -392,7 +380,7 @@ const AppTabs: React.FC = () => {
             <TouchableOpacity
               key={tab.key}
               activeOpacity={0.9}
-              style={styles.tabButton}
+              style={tabStyles.tabButton}
               onPress={() => {
                 if (tab.key === 'Leaderboard' && activeIndex === index) {
                   resetLeaderboardStackToRoot(leaderboardNavRef);
@@ -408,9 +396,9 @@ const AppTabs: React.FC = () => {
               {tab.icon(focused)}
               <Text
                 style={[
-                  styles.tabLabel,
-                  { color: focused ? colors.primary : colors.muted },
-                  tab.key === 'BrushingMenu' ? styles.brushLabel : undefined,
+                  tabStyles.tabLabel,
+                  { color: focused ? c.primary : c.muted },
+                  tab.key === 'BrushingMenu' ? tabStyles.brushLabel : undefined,
                 ]}
                 numberOfLines={1}
               >
@@ -654,46 +642,55 @@ const RootNavigatorInner: React.FC = () => {
   );
 };
 
-const RootNavigator: React.FC = () => {
-  const appTheme = {
-    ...DefaultTheme,
-    colors: {
-      ...DefaultTheme.colors,
-      primary: colors.primary,
-      background: colors.background,
-      card: colors.card,
-      text: colors.text,
-      border: colors.cardBorder,
-      notification: colors.error,
-    },
-  };
+const RootNavigatorOuter: React.FC = () => {
+  const c = useColors();
+  const appTheme = React.useMemo(
+    () => ({
+      ...DefaultTheme,
+      dark: false,
+      colors: {
+        ...DefaultTheme.colors,
+        primary: c.primary,
+        background: c.background,
+        card: c.card,
+        text: c.text,
+        border: c.cardBorder,
+        notification: c.error,
+      },
+    }),
+    [c],
+  );
 
   return (
-    <SafeAreaProvider style={{ backgroundColor: colors.background }}>
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
-    <LanguageProvider>
-    <IntroProvider>
-    <AuthProvider>
-      <NavigationContainer theme={appTheme}>
-        <RootNavigatorInner />
-      </NavigationContainer>
-    </AuthProvider>
-    </IntroProvider>
-    </LanguageProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider style={{ backgroundColor: c.background }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.background }}>
+        <NavigationContainer theme={appTheme}>
+          <RootNavigatorInner />
+        </NavigationContainer>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 };
 
+const RootNavigator: React.FC = () => (
+  <ThemeProvider>
+    <LanguageProvider>
+      <IntroProvider>
+        <AuthProvider>
+          <RootNavigatorOuter />
+        </AuthProvider>
+      </IntroProvider>
+    </LanguageProvider>
+  </ThemeProvider>
+);
+
 export default RootNavigator;
 
-const styles = StyleSheet.create({
+const tabStyles = StyleSheet.create({
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.card,
     borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
     paddingTop: 6,
   },
   tabButton: {
@@ -711,12 +708,10 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     marginTop: -46,
-    backgroundColor: colors.white,
     borderWidth: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** Beyaz dış halka + ortada dolu yeşil daire; ikon beyaz (kontrast garanti) */
   brushFabInner: {
     width: 50,
     height: 50,

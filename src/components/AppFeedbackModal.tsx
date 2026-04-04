@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 
 interface AppFeedbackModalProps {
   visible: boolean;
@@ -17,24 +18,29 @@ export const AppFeedbackModal: React.FC<AppFeedbackModalProps> = ({
   message,
   buttonText,
   onClose,
-}) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <View style={styles.backdrop}>
-      <View style={styles.card}>
-        <View style={styles.iconWrap}>
-          <Ionicons name="information-circle" size={22} color={colors.primary} />
-        </View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
-        <TouchableOpacity style={styles.button} onPress={onClose} activeOpacity={0.85}>
-          <Text style={styles.buttonText}>{buttonText}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </Modal>
-);
+}) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
-const styles = StyleSheet.create({
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.backdrop}>
+        <View style={styles.card}>
+          <View style={styles.iconWrap}>
+            <Ionicons name="information-circle" size={22} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.message}>{message}</Text>
+          <TouchableOpacity style={styles.button} onPress={onClose} activeOpacity={0.85}>
+            <Text style={styles.buttonText}>{buttonText}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const createStyles = (colors: Colors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -92,4 +98,3 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 });
-

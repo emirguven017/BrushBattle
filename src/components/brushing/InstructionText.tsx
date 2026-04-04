@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text, StyleSheet } from 'react-native';
-import { colors } from '../../utils/colors';
+import { type Colors } from '../../utils/colors';
+import { useColors } from '../../context/ThemeContext';
 import type { ZoneIndex } from '../../utils/brushingZones';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -16,11 +17,13 @@ interface InstructionTextProps {
 }
 
 export const InstructionText: React.FC<InstructionTextProps> = ({ zone }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   return <Text style={styles.text}>{t(ZONE_KEYS[zone])}</Text>;
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   text: {
     fontSize: 18,
     fontWeight: '700',

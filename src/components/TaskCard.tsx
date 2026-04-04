@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
+import { type Colors, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 type TaskStatus = 'completed' | 'pending' | 'missed';
@@ -17,6 +18,9 @@ interface TaskCardProps {
 
 /** Task card for morning/evening brushing with large CTA button */
 export const TaskCard: React.FC<TaskCardProps> = ({ title, status, onStart, alwaysShowBrushButton = true }) => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const isCompleted = status === 'completed';
   const isMissed = status === 'missed';
@@ -53,7 +57,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ title, status, onStart, alwa
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: ui.radiusLg,

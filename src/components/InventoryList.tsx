@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import type { MarketItemId, MarketItemId as ItemId } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -10,6 +11,8 @@ interface InventoryListProps {
 }
 
 export const InventoryList: React.FC<InventoryListProps> = ({ items }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const itemLabel = (id: string) => {
     if (id === 'freeze') return t('marketItemFreezeTitle');
@@ -64,7 +67,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({ items }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -125,4 +128,3 @@ const styles = StyleSheet.create({
   emptyWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
   empty: { color: colors.muted, fontSize: 13, fontWeight: '600' },
 });
-

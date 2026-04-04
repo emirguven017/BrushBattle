@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
+import { type Colors, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { useColors } from '../context/ThemeContext';
 import type { MarketItem, MarketItemId } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -30,6 +31,9 @@ export const MarketItemCard: React.FC<MarketItemCardProps> = ({
   onBuy,
   onUse,
 }) => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const iconName = ITEM_ICONS[item.id] ?? 'gift';
   return (
@@ -66,7 +70,7 @@ export const MarketItemCard: React.FC<MarketItemCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: { marginBottom: 10 },
   topRow: { flexDirection: 'row', gap: 10 },
   iconWrap: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
@@ -90,4 +94,3 @@ const styles = StyleSheet.create({
   useText: { color: colors.white, fontWeight: '700' },
   disabled: { opacity: 0.45 },
 });
-

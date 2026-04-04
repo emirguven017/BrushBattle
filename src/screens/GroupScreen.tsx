@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, headerTitle, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
-import { IOS_GROUPED_BG, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
+import { type Colors, headerTitle } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { GroupService } from '../services/GroupService';
@@ -21,6 +22,11 @@ import { WeeklyRewardService } from '../services/weeklyRewardService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
 
 export const GroupScreen: React.FC = () => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { user, refreshUser } = useAuth();
@@ -144,7 +150,7 @@ export const GroupScreen: React.FC = () => {
 
   if (!user?.groupId) {
     return (
-      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
         {!isIosUi ? (
           <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
             <View style={styles.titleBar}>
@@ -153,7 +159,7 @@ export const GroupScreen: React.FC = () => {
           </View>
         ) : null}
         <ScrollView
-          style={[styles.emptyScroll, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+          style={[styles.emptyScroll, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
           contentContainerStyle={[styles.empty, uiStyles.content]}
           keyboardShouldPersistTaps="handled"
         >
@@ -224,7 +230,7 @@ export const GroupScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+      <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
         {!isIosUi ? (
           <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
             <View style={styles.titleBar}>
@@ -232,7 +238,7 @@ export const GroupScreen: React.FC = () => {
             </View>
           </View>
         ) : null}
-        <View style={[styles.center, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+        <View style={[styles.center, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </View>
@@ -240,7 +246,7 @@ export const GroupScreen: React.FC = () => {
   }
 
   return (
-    <View style={[styles.wrapper, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+    <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       {!isIosUi ? (
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
@@ -249,7 +255,7 @@ export const GroupScreen: React.FC = () => {
         </View>
       ) : null}
     <ScrollView
-      style={[styles.container, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}
+      style={[styles.container, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
       contentContainerStyle={styles.content}
     >
       {error && (
@@ -295,7 +301,7 @@ export const GroupScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1 },
   greenHeader: { backgroundColor: colors.primary },
   container: { flex: 1, backgroundColor: colors.background },

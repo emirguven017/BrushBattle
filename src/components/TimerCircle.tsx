@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 
 interface TimerCircleProps {
   remaining: number;
@@ -30,6 +31,9 @@ export const TimerCircle: React.FC<TimerCircleProps> = ({
   total,
   label = 'Keep brushing!'
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const progress = total > 0 ? (total - remaining) / total : 1;
   const m = Math.floor(remaining / 60);
   const s = remaining % 60;
@@ -39,16 +43,14 @@ export const TimerCircle: React.FC<TimerCircleProps> = ({
     <View style={styles.container}>
       <View style={[styles.circleWrapper, styles.shadowRing]}>
         <Svg width={SIZE} height={SIZE} style={styles.svg}>
-          {/* Beyaz arka plan halkası (track) */}
           <Circle
             cx={CENTER}
             cy={CENTER}
             r={RADIUS}
-            stroke="#ffffff"
+            stroke={colors.card}
             strokeWidth={STROKE_WIDTH}
             fill="none"
           />
-          {/* Yeşil halka (sabit, animasyonsuz) */}
           <Circle
             cx={CENTER}
             cy={CENTER}
@@ -75,7 +77,7 @@ export const TimerCircle: React.FC<TimerCircleProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   container: { alignItems: 'center', marginVertical: 24 },
   circleWrapper: {
     width: SIZE,

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 
 export type AppWordmarkVariant = 'login' | 'nav';
 
@@ -19,6 +20,9 @@ export const AppWordmark: React.FC<AppWordmarkProps> = ({
   variant = 'login',
   style,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const spaceIdx = name.indexOf(' ');
   const first = spaceIdx >= 0 ? name.slice(0, spaceIdx) : name;
   const rest = spaceIdx >= 0 ? name.slice(spaceIdx) : '';
@@ -32,7 +36,7 @@ export const AppWordmark: React.FC<AppWordmarkProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'baseline',

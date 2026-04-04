@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 interface WeeklyRanking {
@@ -26,6 +27,8 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
   currentUserId,
   embedded = false,
 }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const myEntry = currentUserId ? weeklyRankings.find((r) => r.userId === currentUserId) : undefined;
   const myPoints = myEntry?.points ?? 0;
@@ -80,7 +83,7 @@ export const WeeklySummaryCard: React.FC<WeeklySummaryCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: 14,
@@ -166,4 +169,3 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-

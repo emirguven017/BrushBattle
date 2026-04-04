@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -15,9 +14,10 @@ import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
 import { NotificationService } from '../services/NotificationService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
-import { colors, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
-import { IOS_GROUPED_BG, iosGroupedCard, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
+import { type Colors, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
 import { dateKey } from '../utils/date';
 import type { BrushSession, SessionType } from '../types';
 
@@ -30,13 +30,17 @@ const minutesSinceScheduled = (timeStr: string): number => {
 };
 
 export const BrushingMenuScreen: React.FC = () => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { user } = useAuth();
   const { t } = useLanguage();
   const nav = useNavigation();
   const [sessions, setSessions] = useState<BrushSession[]>([]);
   const [weekProgress, setWeekProgress] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [refreshing, setRefreshing] = useState(false);
-  const [lateSessionType, setLateSessionType] = useState<SessionType | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
   const [toothbrushCountdown, setToothbrushCountdown] = useState<{
     enabled: boolean;
@@ -141,23 +145,10 @@ export const BrushingMenuScreen: React.FC = () => {
   };
 
   const handleStart = (sessionType: SessionType, status: 'completed' | 'pending' | 'due' | 'missed') => {
-    if (status === 'missed') {
-      setLateSessionType(sessionType);
-      return;
-    }
+    if (status === 'missed') return;
     startSessionDirect(sessionType).catch(() => {});
   };
 
-  const handleLateBrushCancel = () => {
-    setLateSessionType(null);
-  };
-
-  const handleLateBrushConfirm = () => {
-    if (!lateSessionType) return;
-    const type = lateSessionType;
-    setLateSessionType(null);
-    startSessionDirect(type).catch(() => {});
-  };
 
   const handleMarkToothbrushReplaced = async () => {
     if (!user) return;
@@ -172,7 +163,7 @@ export const BrushingMenuScreen: React.FC = () => {
   const weekdayLabels = t('weekdaysShort').split(',').slice(0, 7);
 
   return (
-    <View style={[styles.container, uiStyles.screen, isIosUi && { backgroundColor: IOS_GROUPED_BG }]}>
+    <View style={[styles.container, uiStyles.screen, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
       <ScrollView
         contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
         refreshControl={
@@ -192,7 +183,7 @@ export const BrushingMenuScreen: React.FC = () => {
           accessibilityRole="button"
           accessibilityLabel={`${t('brushingGraphTitle')}. ${t('brushingGraphTapHint')}`}
         >
-          <View style={[uiStyles.card, styles.card, isIosUi && iosGroupedCard]}>
+          <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard]}>
             <View style={styles.graphHeaderRow}>
               <View style={styles.graphHeaderText}>
                 <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('brushingGraphTitle')}</Text>
@@ -214,7 +205,7 @@ export const BrushingMenuScreen: React.FC = () => {
           </View>
         </TouchableOpacity>
 
-        <View style={[uiStyles.card, styles.card, isIosUi && iosGroupedCard]}>
+        <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard]}>
           <View style={styles.rowBetween}>
             <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('sessionListTitle')}</Text>
             <Text style={styles.pointHint}>+{sessionPoints} {t('pointsLabel')}</Text>
@@ -223,49 +214,55 @@ export const BrushingMenuScreen: React.FC = () => {
             const session = sessions.find((s) => s.sessionType === sessionType);
             const status = getEffectiveStatus(session, sessionType);
             return (
-              <View key={sessionType} style={styles.sessionRow}>
+              <View key={sessionType} style={[styles.sessionRow, status === 'missed' && styles.sessionRowMissed]}>
                 <View style={styles.sessionHead}>
                   <Text style={styles.sessionTitle}>{getSessionTitle(sessionType)}</Text>
                   <Text style={styles.sessionTime}>{getSessionTime(sessionType, session?.scheduledTime)}</Text>
                 </View>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.statusText}>
-                    {status === 'completed'
-                      ? t('statusCompleted')
-                      : status === 'missed'
-                        ? t('statusMissed')
+                {status === 'missed' ? (
+                  <View style={styles.missedBanner}>
+                    <View style={styles.missedBannerIcon}>
+                      <Ionicons name="time" size={16} color={colors.error} />
+                    </View>
+                    <View style={styles.missedBannerTextWrap}>
+                      <Text style={styles.missedBannerTitle}>{t('statusMissed')}</Text>
+                      <Text style={styles.missedBannerSub}>{t('sessionMissedHint')}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.statusText}>
+                      {status === 'completed'
+                        ? t('statusCompleted')
                         : status === 'due'
                           ? t('statusDue')
                           : t('statusPending')}
-                  </Text>
-                  <TouchableOpacity
-                    style={[
-                      status === 'completed' ? uiStyles.buttonSecondary : uiStyles.buttonPrimary,
-                      styles.startBtn,
-                      status === 'completed' && styles.startBtnSecondary
-                    ]}
-                    onPress={() => handleStart(sessionType, status)}
-                  >
-                    <Ionicons
-                      name={status === 'completed' ? 'refresh' : 'play'}
-                      size={14}
-                      color={status === 'completed' ? colors.primary : colors.white}
-                    />
-                    <Text style={[styles.startBtnText, status === 'completed' && styles.startBtnTextSecondary]}>
-                      {status === 'completed'
-                        ? t('repeatBrushing')
-                        : status === 'missed'
-                          ? t('brushAnyway')
-                          : t('startBrushing')}
                     </Text>
-                  </TouchableOpacity>
-                </View>
+                    <TouchableOpacity
+                      style={[
+                        status === 'completed' ? uiStyles.buttonSecondary : uiStyles.buttonPrimary,
+                        styles.startBtn,
+                        status === 'completed' && styles.startBtnSecondary
+                      ]}
+                      onPress={() => handleStart(sessionType, status)}
+                    >
+                      <Ionicons
+                        name={status === 'completed' ? 'refresh' : 'play'}
+                        size={14}
+                        color={status === 'completed' ? colors.primary : colors.white}
+                      />
+                      <Text style={[styles.startBtnText, status === 'completed' && styles.startBtnTextSecondary]}>
+                        {status === 'completed' ? t('repeatBrushing') : t('startBrushing')}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             );
           })}
         </View>
 
-        <View style={[uiStyles.card, styles.card, isIosUi && iosGroupedCard]}>
+        <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard]}>
           <View style={styles.countdownHeader}>
             <View style={styles.countdownIconWrap}>
               <Ionicons name="refresh-circle" size={20} color={colors.primary} />
@@ -324,36 +321,6 @@ export const BrushingMenuScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      <Modal
-        visible={lateSessionType !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={handleLateBrushCancel}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('lateBrushingAlertTitle')}</Text>
-            <Text style={styles.modalMessage}>{t('lateBrushingAlertMessage')}</Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalBtnCancel}
-                onPress={handleLateBrushCancel}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalBtnCancelText}>{t('dontBrush')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalBtnConfirm}
-                onPress={handleLateBrushConfirm}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.modalBtnConfirmText}>{t('brushAnyway')}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       <AppFeedbackModal
         visible={feedbackModal !== null}
         title={feedbackModal?.title ?? ''}
@@ -365,7 +332,7 @@ export const BrushingMenuScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   container: { flex: 1 },
   content: { padding: ui.screenPadding, paddingBottom: ui.spacingXl },
   card: {
@@ -515,63 +482,40 @@ const styles = StyleSheet.create({
   },
   startBtnText: { color: colors.white, fontSize: 11, fontWeight: '700' },
   startBtnTextSecondary: { color: colors.primary },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  sessionRowMissed: {
+    borderColor: colors.error + '25',
+    backgroundColor: colors.errorLight,
+  },
+  missedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: colors.error + '0D',
+  },
+  missedBannerIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.error + '18',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
-  modalCard: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+  missedBannerTextWrap: {
+    flex: 1,
   },
-  modalTitle: {
-    fontSize: 20,
+  missedBannerTitle: {
+    fontSize: 12,
     fontWeight: '800',
-    color: colors.text,
-    marginBottom: 12,
-    textAlign: 'center',
+    color: colors.error,
   },
-  modalMessage: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalBtnCancel: {
-    flex: 1,
-    backgroundColor: colors.error,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  modalBtnCancelText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  modalBtnConfirm: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  modalBtnConfirmText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
+  missedBannerSub: {
+    fontSize: 10,
+    color: colors.error + 'AA',
+    marginTop: 1,
   },
 });
 

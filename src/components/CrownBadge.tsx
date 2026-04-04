@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Text, StyleSheet, View } from 'react-native';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
+import { useColors } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 
 interface CrownBadgeProps {
@@ -9,6 +10,8 @@ interface CrownBadgeProps {
 }
 
 export const CrownBadge: React.FC<CrownBadgeProps> = ({ visible = true, label }) => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { t } = useLanguage();
   const displayLabel = label ?? t('weeklyChampion');
   if (!visible) return null;
@@ -19,7 +22,7 @@ export const CrownBadge: React.FC<CrownBadgeProps> = ({ visible = true, label })
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
     backgroundColor: '#FFF7DA',
@@ -35,4 +38,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

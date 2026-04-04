@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,19 +12,20 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors } from '../utils/colors';
+import { type Colors } from '../utils/colors';
 import { AppBranding } from '../components/AppBranding';
 import { AppWordmark } from '../components/AppWordmark';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
+import { useColors } from '../context/ThemeContext';
 
 const REMEMBER_ME_EMAIL_KEY = '@brush_battle_remember_email';
 
-/** iOS system grouped background (light) */
-const IOS_GROUPED_BG = '#F2F2F7';
 const IOS_SEPARATOR = 'rgba(60, 60, 67, 0.29)';
 
 export const LoginScreen: React.FC = () => {
+  const colors = useColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const [email, setEmail] = useState('');
@@ -401,18 +402,18 @@ export const LoginScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: {
     flex: 1,
     ...Platform.select({
-      ios: { backgroundColor: IOS_GROUPED_BG },
+      ios: { backgroundColor: colors.iosGroupedBg },
       default: { backgroundColor: colors.background },
     }),
   },
   screen: {
     flex: 1,
     ...Platform.select({
-      ios: { backgroundColor: IOS_GROUPED_BG },
+      ios: { backgroundColor: colors.iosGroupedBg },
       default: { backgroundColor: colors.background },
     }),
   },

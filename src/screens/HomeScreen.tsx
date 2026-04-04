@@ -6,13 +6,14 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Modal,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { colors, ui } from '../utils/colors';
-import { uiStyles } from '../utils/uiStyles';
+import { type Colors, ui } from '../utils/colors';
+import { createUiStyles } from '../utils/uiStyles';
+import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useTabJump } from '../context/TabJumpContext';
@@ -34,10 +35,13 @@ const minutesSinceScheduled = (timeStr: string): number => {
 
 const MOTIVATION_KEYS = ['keepStreak', 'oneLeft', 'friendAhead'];
 
-const IOS_GROUPED_BG = '#F2F2F7';
 const IOS_SEPARATOR = 'rgba(60, 60, 67, 0.29)';
 
 export const HomeScreen: React.FC = () => {
+  const colors = useColors();
+  const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
+  const ios = useMemo(() => createIosStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useAuth();
   const { t } = useLanguage();
   const nav = useNavigation();
@@ -48,7 +52,6 @@ export const HomeScreen: React.FC = () => {
   const [brScore, setBrScore] = useState(0);
   const [weeklyRank, setWeeklyRank] = useState<number | undefined>(undefined);
   const [championName, setChampionName] = useState<string | undefined>(undefined);
-  const [lateBrushModal, setLateBrushModal] = useState<SessionType | null>(null);
   const [feedbackModal, setFeedbackModal] = useState<{ title: string; message: string } | null>(null);
   const plannedSessionTypes: SessionType[] = useMemo(() => {
     const count = Math.min(3, Math.max(1, Number(user?.dailySessionCount ?? 2)));
@@ -104,7 +107,7 @@ export const HomeScreen: React.FC = () => {
         </TouchableOpacity>
       )
     });
-  }, [nav, brScore, tabJump]);
+  }, [nav, brScore, tabJump, styles, colors.text]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -211,22 +214,8 @@ export const HomeScreen: React.FC = () => {
   };
 
   const handleStartBrushing = (sessionType: SessionType) => {
-    if (getEffectiveStatus(getSession(sessionType), sessionType) === 'missed') {
-      setLateBrushModal(sessionType);
-    } else {
-      doStartBrushing(sessionType);
-    }
-  };
-
-  const handleLateBrushConfirm = () => {
-    if (lateBrushModal) {
-      doStartBrushing(lateBrushModal);
-      setLateBrushModal(null);
-    }
-  };
-
-  const handleLateBrushCancel = () => {
-    setLateBrushModal(null);
+    if (getEffectiveStatus(getSession(sessionType), sessionType) === 'missed') return;
+    doStartBrushing(sessionType);
   };
 
   const greeting = (() => {
@@ -241,8 +230,6 @@ export const HomeScreen: React.FC = () => {
     if (sessionType === 'midday') return t('middayTask');
     return t('eveningTask');
   };
-
-  const isIOS = Platform.OS === 'ios';
 
   const refreshControl = (
     <RefreshControl
@@ -265,13 +252,13 @@ export const HomeScreen: React.FC = () => {
           : t('statusPending');
 
   return (
-    <View style={[styles.wrapper, !isIOS && uiStyles.screen, isIOS && styles.wrapperIOS]}>
+    <View style={[styles.wrapper, !isIosUi && uiStyles.screen, isIosUi && styles.wrapperIOS]}>
     <ScrollView
-      style={[styles.container, isIOS && styles.containerIOS]}
-      contentContainerStyle={[styles.content, isIOS && styles.contentIOS]}
+      style={[styles.container, isIosUi && styles.containerIOS]}
+      contentContainerStyle={[styles.content, isIosUi && styles.contentIOS]}
       refreshControl={refreshControl}
     >
-      {isIOS ? (
+      {isIosUi ? (
         <>
           <View style={styles.iosGreetingBlock}>
             <Text style={styles.iosGreetingCaps}>{greeting}</Text>
@@ -279,7 +266,7 @@ export const HomeScreen: React.FC = () => {
             <Text style={styles.iosTagline}>{t('todayQuestion')}</Text>
           </View>
 
-          <View style={styles.iosInsetGroup}>
+          <View style={[styles.iosInsetGroup, ios.iosGroupedCard]}>
             <View style={styles.iosProgressHeaderRow}>
               <Text style={styles.iosProgressLabel}>{t('dailyProgress')}</Text>
               <Text style={styles.iosProgressFraction}>
@@ -291,9 +278,9 @@ export const HomeScreen: React.FC = () => {
             </View>
           </View>
 
-          <Text style={styles.iosSectionHeader}>{t('todayTasks')}</Text>
+          <Text style={[styles.iosSectionHeader, ios.iosSectionLabelText]}>{t('todayTasks')}</Text>
 
-          <View style={styles.iosInsetGroup}>
+          <View style={[styles.iosInsetGroup, ios.iosGroupedCard]}>
             {plannedSessionTypes.map((sessionType, index) => {
               const session = getSession(sessionType);
               const status = getEffectiveStatus(session, sessionType);
@@ -306,16 +293,30 @@ export const HomeScreen: React.FC = () => {
                       <Text style={styles.iosTaskTitle}>{getSessionTitle(sessionType)}</Text>
                       <Text style={styles.iosTaskTime}>{getSessionTime(session, sessionType)}</Text>
                     </View>
-                    <Text style={styles.iosTaskStatus}>{statusLabel(status)}</Text>
-                    <TouchableOpacity
-                      style={[styles.iosTaskBtn, done && styles.iosTaskBtnOutline]}
-                      onPress={() => handleStartBrushing(sessionType)}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={[styles.iosTaskBtnLabel, done && styles.iosTaskBtnLabelOutline]}>
-                        {done ? t('repeatBrushing') : status === 'missed' ? t('brushAnyway') : t('startBrushing')}
-                      </Text>
-                    </TouchableOpacity>
+                    {status === 'missed' ? (
+                      <View style={styles.missedBanner}>
+                        <View style={styles.missedBannerIcon}>
+                          <Ionicons name="time" size={16} color={colors.error} />
+                        </View>
+                        <View style={styles.missedBannerTextWrap}>
+                          <Text style={styles.missedBannerTitle}>{t('statusMissed')}</Text>
+                          <Text style={styles.missedBannerSub}>{t('sessionMissedHint')}</Text>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={styles.iosTaskStatus}>{statusLabel(status)}</Text>
+                    )}
+                    {status === 'missed' ? null : (
+                      <TouchableOpacity
+                        style={[styles.iosTaskBtn, done && styles.iosTaskBtnOutline]}
+                        onPress={() => handleStartBrushing(sessionType)}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={[styles.iosTaskBtnLabel, done && styles.iosTaskBtnLabelOutline]}>
+                          {done ? t('repeatBrushing') : t('startBrushing')}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
               );
@@ -325,7 +326,7 @@ export const HomeScreen: React.FC = () => {
           <Text style={styles.iosMotivation}>{motivationMessage}</Text>
 
           {weeklyRankings.length > 0 ? (
-            <View style={styles.iosInsetGroup}>
+            <View style={[styles.iosInsetGroup, ios.iosGroupedCard]}>
               <TouchableOpacity
                 style={styles.iosChevronRow}
                 onPress={() => tabJump?.jumpToTab('Leaderboard')}
@@ -378,16 +379,30 @@ export const HomeScreen: React.FC = () => {
                     <Text style={[styles.taskTimeText, { color: chip.fg }]}>{getSessionTime(session, sessionType)}</Text>
                   </View>
                 </View>
-                <Text style={styles.taskStatusInline}>{statusLabel(status)}</Text>
-                <TouchableOpacity
-                  style={[styles.taskBtn, status === 'completed' && styles.taskBtnSecondary]}
-                  onPress={() => handleStartBrushing(sessionType)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.taskBtnText, status === 'completed' && styles.taskBtnTextSecondary]}>
-                    {status === 'completed' ? t('repeatBrushing') : status === 'missed' ? t('brushAnyway') : t('startBrushing')}
-                  </Text>
-                </TouchableOpacity>
+                {status === 'missed' ? (
+                  <View style={styles.missedBanner}>
+                    <View style={styles.missedBannerIcon}>
+                      <Ionicons name="time" size={16} color={colors.error} />
+                    </View>
+                    <View style={styles.missedBannerTextWrap}>
+                      <Text style={styles.missedBannerTitle}>{t('statusMissed')}</Text>
+                      <Text style={styles.missedBannerSub}>{t('sessionMissedHint')}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.taskStatusInline}>{statusLabel(status)}</Text>
+                )}
+                {status === 'missed' ? null : (
+                  <TouchableOpacity
+                    style={[styles.taskBtn, status === 'completed' && styles.taskBtnSecondary]}
+                    onPress={() => handleStartBrushing(sessionType)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.taskBtnText, status === 'completed' && styles.taskBtnTextSecondary]}>
+                      {status === 'completed' ? t('repeatBrushing') : t('startBrushing')}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -434,31 +449,6 @@ export const HomeScreen: React.FC = () => {
       )}
     </ScrollView>
 
-    <Modal visible={lateBrushModal !== null} transparent animationType="fade" onRequestClose={handleLateBrushCancel}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>{t('lateBrushingAlertTitle')}</Text>
-          <Text style={styles.modalMessage}>{t('lateBrushingAlertMessage')}</Text>
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={styles.modalBtnCancel}
-              onPress={handleLateBrushCancel}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.modalBtnCancelText}>{t('dontBrush')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalBtnConfirm}
-              onPress={handleLateBrushConfirm}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.modalBtnConfirmText}>{t('brushAnyway')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-
     <AppFeedbackModal
       visible={feedbackModal !== null}
       title={feedbackModal?.title ?? ''}
@@ -470,11 +460,11 @@ export const HomeScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1 },
-  wrapperIOS: { backgroundColor: IOS_GROUPED_BG },
+  wrapperIOS: { backgroundColor: colors.iosGroupedBg },
   container: { flex: 1, backgroundColor: colors.background },
-  containerIOS: { backgroundColor: IOS_GROUPED_BG },
+  containerIOS: { backgroundColor: colors.iosGroupedBg },
   content: { padding: ui.screenPadding, paddingBottom: 40, flexGrow: 1 },
   contentIOS: {
     paddingHorizontal: 16,
@@ -507,8 +497,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   iosInsetGroup: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
     overflow: 'hidden',
     marginBottom: 16,
     ...Platform.select({
@@ -553,11 +541,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   iosSectionHeader: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: -0.08,
     marginBottom: 8,
     marginLeft: 16,
   },
@@ -812,62 +795,37 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  missedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: colors.errorLight,
+    borderWidth: 1,
+    borderColor: colors.error + '25',
+  },
+  missedBannerIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.error + '18',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24
   },
-  modalCard: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.cardBorder
+  missedBannerTextWrap: {
+    flex: 1,
   },
-  modalTitle: {
-    fontSize: 20,
+  missedBannerTitle: {
+    fontSize: 13,
     fontWeight: '800',
-    color: colors.text,
-    marginBottom: 12,
-    textAlign: 'center'
+    color: colors.error,
   },
-  modalMessage: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    marginBottom: 24,
-    textAlign: 'center'
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12
-  },
-  modalBtnCancel: {
-    flex: 1,
-    backgroundColor: colors.error,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center'
-  },
-  modalBtnCancelText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700'
-  },
-  modalBtnConfirm: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center'
-  },
-  modalBtnConfirmText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700'
+  missedBannerSub: {
+    fontSize: 11,
+    color: colors.error + 'BB',
+    marginTop: 1,
   },
 });
