@@ -149,7 +149,7 @@ export const BrushingMenuScreen: React.FC = () => {
   };
 
   const handleStart = (sessionType: SessionType, status: 'completed' | 'pending' | 'due' | 'missed') => {
-    if (status === 'missed') return;
+    if (status === 'missed' || status === 'pending') return;
     startSessionDirect(sessionType).catch(() => {});
   };
 
@@ -224,7 +224,14 @@ export const BrushingMenuScreen: React.FC = () => {
             const session = sessions.find((s) => s.sessionType === sessionType);
             const status = getEffectiveStatus(session, sessionType);
             return (
-              <View key={sessionType} style={[styles.sessionRow, status === 'missed' && styles.sessionRowMissed]}>
+              <View
+                key={sessionType}
+                style={[
+                  styles.sessionRow,
+                  status === 'missed' && styles.sessionRowMissed,
+                  status === 'completed' && styles.sessionRowCompleted,
+                ]}
+              >
                 <View style={styles.sessionHead}>
                   <Text style={styles.sessionTitle}>{getSessionTitle(sessionType)}</Text>
                   <Text style={styles.sessionTime}>{getSessionTime(sessionType, session?.scheduledTime)}</Text>
@@ -239,30 +246,38 @@ export const BrushingMenuScreen: React.FC = () => {
                       <Text style={styles.missedBannerSub}>{t('sessionMissedHint')}</Text>
                     </View>
                   </View>
+                ) : status === 'completed' ? (
+                  <View style={styles.statusPillWide}>
+                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                    <Text style={styles.statusPillWideText}>{t('statusCompleted')}</Text>
+                  </View>
                 ) : (
                   <View style={styles.rowBetween}>
                     <Text style={styles.statusText}>
-                      {status === 'completed'
-                        ? t('statusCompleted')
-                        : status === 'due'
-                          ? t('statusDue')
-                          : t('statusPending')}
+                      {status === 'due' ? t('statusDue') : t('statusPending')}
                     </Text>
                     <TouchableOpacity
                       style={[
-                        status === 'completed' ? uiStyles.buttonSecondary : uiStyles.buttonPrimary,
+                        uiStyles.buttonPrimary,
                         styles.startBtn,
-                        status === 'completed' && styles.startBtnSecondary
+                        status === 'pending' && styles.startBtnPending,
                       ]}
                       onPress={() => handleStart(sessionType, status)}
+                      disabled={status === 'pending'}
+                      activeOpacity={status === 'pending' ? 1 : 0.85}
                     >
                       <Ionicons
-                        name={status === 'completed' ? 'refresh' : 'play'}
-                        size={14}
-                        color={status === 'completed' ? colors.primary : colors.white}
+                        name={status === 'pending' ? 'time-outline' : 'play'}
+                        size={16}
+                        color={status === 'pending' ? colors.textSecondary : colors.white}
                       />
-                      <Text style={[styles.startBtnText, status === 'completed' && styles.startBtnTextSecondary]}>
-                        {status === 'completed' ? t('repeatBrushing') : t('startBrushing')}
+                      <Text
+                        style={[
+                          styles.startBtnText,
+                          status === 'pending' && styles.startBtnTextPending,
+                        ]}
+                      >
+                        {status === 'pending' ? t('waitingForScheduledTime') : t('startBrushing')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -573,23 +588,49 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   sessionTitle: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
   sessionTime: { fontSize: 12, color: colors.muted, fontWeight: '700' },
   statusText: { fontSize: 12, color: colors.textSecondary, fontWeight: '700' },
+  /** Tamamlandı: satır zaten komple yeşil; içerik şeridi (kaçırılmış satırdaki banner gibi) */
+  statusPillWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    alignSelf: 'stretch',
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: colors.success + '18',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.success + '35',
+  },
+  statusPillWideText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.success,
+  },
   startBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    minHeight: 36,
-    paddingHorizontal: 12,
-    paddingVertical: 0,
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 999,
   },
-  startBtnSecondary: {
-    borderColor: colors.primary,
+  startBtnText: { color: colors.white, fontSize: 15, fontWeight: '700' },
+  startBtnPending: {
+    backgroundColor: colors.cardBorder,
+    opacity: 0.92,
   },
-  startBtnText: { color: colors.white, fontSize: 11, fontWeight: '700' },
-  startBtnTextSecondary: { color: colors.primary },
+  startBtnTextPending: { color: colors.textSecondary, fontSize: 15, fontWeight: '700' },
   sessionRowMissed: {
     borderColor: colors.error + '25',
     backgroundColor: colors.errorLight,
+  },
+  /** Kaçırılmış satırdaki gibi tüm kart yeşil */
+  sessionRowCompleted: {
+    borderColor: colors.success + '45',
+    backgroundColor: colors.successLight,
   },
   missedBanner: {
     flexDirection: 'row',

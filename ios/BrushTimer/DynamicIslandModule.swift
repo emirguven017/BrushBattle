@@ -43,10 +43,19 @@ class DynamicIslandModule: NSObject {
         if let existing = Activity<BrushingActivityAttributes>.activities.first {
           await existing.end(dismissalPolicy: .immediate)
         }
-        _ = try Activity<BrushingActivityAttributes>.request(
-          attributes: attributes,
-          content: .init(state: state, staleDate: state.endDate)
-        )
+        if #available(iOS 16.2, *) {
+          _ = try Activity<BrushingActivityAttributes>.request(
+            attributes: attributes,
+            content: ActivityContent(state: state, staleDate: state.endDate),
+            pushType: nil
+          )
+        } else {
+          _ = try Activity<BrushingActivityAttributes>.request(
+            attributes: attributes,
+            contentState: state,
+            pushType: nil
+          )
+        }
         resolve(nil)
       } catch {
         resolve(nil)

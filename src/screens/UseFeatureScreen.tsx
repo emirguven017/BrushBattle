@@ -176,6 +176,10 @@ export const UseFeatureScreen: React.FC = () => {
     if (msg === 'ERR_DAILY_ATTACK_LIMIT') return t('dailyAttackLimitReached');
     if (msg === 'ERR_DOUBLE_POINTS_ACTIVE') return t('doublePointsAlreadyActive');
     if (msg === 'ERR_STREAK_SAVER_ACTIVE') return t('streakSaverAlreadyActive');
+    if (msg === 'ERR_SHIELD_ALREADY_ACTIVE') return t('shieldAlreadyActive');
+    if (msg === 'ERR_RANK_BOOSTER_ALREADY_ACTIVE') return t('rankBoosterAlreadyActive');
+    if (msg === 'ERR_TARGET_ALREADY_FROZEN') return t('targetAlreadyFrozen');
+    if (msg === 'ERR_EFFECT_ALREADY_ACTIVE') return t('effectAlreadyActive');
     if (msg.toLowerCase().includes('hedef')) return t('selectTargetFirst');
     if (msg.toLowerCase().includes('limit')) return t('dailyAttackLimitReached');
     return msg;

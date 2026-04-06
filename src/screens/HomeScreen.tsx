@@ -273,7 +273,8 @@ export const HomeScreen: React.FC = () => {
   };
 
   const handleStartBrushing = (sessionType: SessionType) => {
-    if (getEffectiveStatus(getSession(sessionType), sessionType) === 'missed') return;
+    const status = getEffectiveStatus(getSession(sessionType), sessionType);
+    if (status === 'missed' || status === 'pending') return;
     doStartBrushing(sessionType);
   };
 
@@ -363,17 +364,31 @@ export const HomeScreen: React.FC = () => {
                           <Text style={styles.missedBannerSub}>{t('sessionMissedHint')}</Text>
                         </View>
                       </View>
+                    ) : done ? (
+                      <View style={styles.iosTaskCompletedPill}>
+                        <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                        <Text style={styles.iosTaskCompletedPillText}>{t('statusCompleted')}</Text>
+                      </View>
                     ) : (
                       <Text style={styles.iosTaskStatus}>{statusLabel(status)}</Text>
                     )}
-                    {status === 'missed' ? null : (
+                    {status === 'missed' || done ? null : (
                       <TouchableOpacity
-                        style={[styles.iosTaskBtn, done && styles.iosTaskBtnOutline]}
+                        style={[
+                          styles.iosTaskBtn,
+                          status === 'pending' && styles.iosTaskBtnDisabled,
+                        ]}
                         onPress={() => handleStartBrushing(sessionType)}
-                        activeOpacity={0.85}
+                        activeOpacity={status === 'pending' ? 1 : 0.85}
+                        disabled={status === 'pending'}
                       >
-                        <Text style={[styles.iosTaskBtnLabel, done && styles.iosTaskBtnLabelOutline]}>
-                          {done ? t('repeatBrushing') : t('startBrushing')}
+                        <Text
+                          style={[
+                            styles.iosTaskBtnLabel,
+                            status === 'pending' && styles.iosTaskBtnLabelDisabled,
+                          ]}
+                        >
+                          {status === 'pending' ? t('waitingForScheduledTime') : t('startBrushing')}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -449,17 +464,31 @@ export const HomeScreen: React.FC = () => {
                       <Text style={styles.missedBannerSub}>{t('sessionMissedHint')}</Text>
                     </View>
                   </View>
+                ) : status === 'completed' ? (
+                  <View style={styles.taskCompletedPill}>
+                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                    <Text style={styles.taskCompletedPillText}>{t('statusCompleted')}</Text>
+                  </View>
                 ) : (
                   <Text style={styles.taskStatusInline}>{statusLabel(status)}</Text>
                 )}
-                {status === 'missed' ? null : (
+                {status === 'missed' || status === 'completed' ? null : (
                   <TouchableOpacity
-                    style={[styles.taskBtn, status === 'completed' && styles.taskBtnSecondary]}
+                    style={[
+                      styles.taskBtn,
+                      status === 'pending' && styles.taskBtnDisabled,
+                    ]}
                     onPress={() => handleStartBrushing(sessionType)}
-                    activeOpacity={0.85}
+                    activeOpacity={status === 'pending' ? 1 : 0.85}
+                    disabled={status === 'pending'}
                   >
-                    <Text style={[styles.taskBtnText, status === 'completed' && styles.taskBtnTextSecondary]}>
-                      {status === 'completed' ? t('repeatBrushing') : t('startBrushing')}
+                    <Text
+                      style={[
+                        styles.taskBtnText,
+                        status === 'pending' && styles.taskBtnTextDisabled,
+                      ]}
+                    >
+                      {status === 'pending' ? t('waitingForScheduledTime') : t('startBrushing')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -632,8 +661,9 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 14,
   },
+  /** Tamamlanan görev hücresi: kaçırılmış kırmızı kart kadar tam yeşil zemin */
   iosTaskCellDone: {
-    backgroundColor: 'rgba(46, 204, 113, 0.06)',
+    backgroundColor: colors.successLight,
   },
   iosTaskTopRow: {
     flexDirection: 'row',
@@ -659,6 +689,25 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     marginTop: 4,
     marginBottom: 12,
   },
+  iosTaskCompletedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 44,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    backgroundColor: colors.success + '18',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.success + '35',
+  },
+  iosTaskCompletedPillText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.success,
+  },
   iosTaskBtn: {
     backgroundColor: colors.primary,
     borderRadius: 10,
@@ -671,6 +720,9 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: colors.primary,
   },
+  iosTaskBtnDisabled: {
+    backgroundColor: 'rgba(60, 60, 67, 0.12)',
+  },
   iosTaskBtnLabel: {
     color: colors.white,
     fontSize: 17,
@@ -678,6 +730,9 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   iosTaskBtnLabelOutline: {
     color: colors.primary,
+  },
+  iosTaskBtnLabelDisabled: {
+    color: colors.muted,
   },
   iosMotivation: {
     fontSize: 15,
@@ -774,8 +829,8 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     borderColor: colors.cardBorder
   },
   taskCardCompleted: {
-    borderColor: colors.success,
-    backgroundColor: colors.successLight
+    borderColor: colors.success + '45',
+    backgroundColor: colors.successLight,
   },
   taskTitle: {
     fontSize: 15,
@@ -786,6 +841,25 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     fontSize: 12,
     color: colors.muted,
     marginBottom: 8,
+  },
+  taskCompletedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: ui.buttonHeight,
+    marginTop: 4,
+    marginBottom: 12,
+    borderRadius: ui.radiusMd,
+    paddingHorizontal: 14,
+    backgroundColor: colors.success + '18',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.success + '35',
+  },
+  taskCompletedPillText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.success,
   },
   taskHeaderRow: {
     flexDirection: 'row',
@@ -821,6 +895,10 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary
   },
+  taskBtnDisabled: {
+    backgroundColor: colors.cardBorder,
+    opacity: 0.9,
+  },
   taskBtnText: {
     color: colors.white,
     fontSize: 14,
@@ -828,6 +906,9 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   taskBtnTextSecondary: {
     color: colors.primary
+  },
+  taskBtnTextDisabled: {
+    color: colors.textSecondary,
   },
   leaderboardPreview: {
     borderRadius: ui.radiusLg,

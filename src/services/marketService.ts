@@ -85,6 +85,11 @@ export const MarketService = {
       const canUse = await this.canUseAttackToday(userId);
       if (!canUse) throw new Error('ERR_DAILY_ATTACK_LIMIT');
 
+      if (itemId === 'freeze') {
+        const alreadyFrozen = await EffectService.hasActiveEffect(targetUserId, 'frozen');
+        if (alreadyFrozen) throw new Error('ERR_TARGET_ALREADY_FROZEN');
+      }
+
       await InventoryService.consumeItem(userId, itemId, 1);
 
       const leaderboard = await LeaderboardService.getGroupLeaderboard(attacker.groupId);
@@ -158,6 +163,16 @@ export const MarketService = {
       if (existing) {
         throw new Error('ERR_STREAK_SAVER_ACTIVE');
       }
+      return;
+    }
+    if (itemId === 'shield') {
+      const existing = await EffectService.hasActiveEffect(userId, 'shield');
+      if (existing) throw new Error('ERR_SHIELD_ALREADY_ACTIVE');
+      return;
+    }
+    if (itemId === 'rank_booster') {
+      const existing = await EffectService.hasActiveEffect(userId, 'rank_booster');
+      if (existing) throw new Error('ERR_RANK_BOOSTER_ALREADY_ACTIVE');
     }
   },
 

@@ -9,6 +9,30 @@ const isOffline = (e: unknown) =>
 const isExpired = (effect: ActiveEffect) =>
   typeof effect.expiresAt === 'number' && effect.expiresAt <= Date.now();
 
+/** Aynı effect türünden birden fazla kayıt varsa tek satırda birleştir (en uzun süreli / en fazla kullanım). */
+const pickStrongerEffect = (a: ActiveEffect, b: ActiveEffect): ActiveEffect => {
+  const expA = a.expiresAt ?? 0;
+  const expB = b.expiresAt ?? 0;
+  if (expA !== expB) return expA > expB ? a : b;
+  const uA = a.usesLeft ?? 0;
+  const uB = b.usesLeft ?? 0;
+  return uA >= uB ? a : b;
+};
+
+export const dedupeEffectsByType = (effects: ActiveEffect[]): ActiveEffect[] => {
+  const byType = new Map<EffectType, ActiveEffect>();
+  for (const e of effects) {
+    if (isExpired(e)) continue;
+    const cur = byType.get(e.type);
+    if (!cur) {
+      byType.set(e.type, e);
+    } else {
+      byType.set(e.type, pickStrongerEffect(e, cur));
+    }
+  }
+  return Array.from(byType.values());
+};
+
 export const EffectService = {
   async getEffects(userId: string): Promise<UserEffects> {
     try {
@@ -20,11 +44,13 @@ export const EffectService = {
       }
       const data = snap.data() as UserEffects;
       const cleaned = data.activeEffects.filter((e) => !isExpired(e));
-      if (cleaned.length !== data.activeEffects.length) {
-        await setDoc(effectsRef(userId), { ...data, activeEffects: cleaned, updatedAt: Date.now() }, { merge: true });
-        return { ...data, activeEffects: cleaned };
+      const deduped = dedupeEffectsByType(cleaned);
+      const needsPersist =
+        deduped.length !== cleaned.length || cleaned.length !== data.activeEffects.length;
+      if (needsPersist) {
+        await setDoc(effectsRef(userId), { ...data, activeEffects: deduped, updatedAt: Date.now() }, { merge: true });
       }
-      return data;
+      return { ...data, activeEffects: deduped };
     } catch (e) {
       if (isOffline(e)) {
         return { userId, activeEffects: [], updatedAt: Date.now() };
@@ -35,6 +61,9 @@ export const EffectService = {
 
   async addEffect(userId: string, effect: Omit<ActiveEffect, 'id'>): Promise<void> {
     const docData = await this.getEffects(userId);
+    if (docData.activeEffects.some((e) => e.type === effect.type)) {
+      throw new Error('ERR_EFFECT_ALREADY_ACTIVE');
+    }
     const newEffect: ActiveEffect = {
       id: `${effect.type}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       ...effect,
@@ -59,6 +88,18 @@ export const EffectService = {
         activeEffects: docData.activeEffects.filter((e) => e.id !== effectId),
         updatedAt: Date.now(),
       },
+      { merge: true }
+    );
+  },
+
+  /** Aynı türdeki tüm etkileri kaldır (haftalık ödül yenileme vb.) */
+  async removeEffectsOfType(userId: string, type: EffectType): Promise<void> {
+    const docData = await this.getEffects(userId);
+    const next = docData.activeEffects.filter((e) => e.type !== type);
+    if (next.length === docData.activeEffects.length) return;
+    await setDoc(
+      effectsRef(userId),
+      { userId, activeEffects: next, updatedAt: Date.now() },
       { merge: true }
     );
   },

@@ -106,6 +106,8 @@ export const WeeklyRewardService = {
     if (champion) {
       await InventoryService.addBrScore(champion.userId, 50);
       await this.addBadge(champion.userId, '👑 Weekly Champion');
+      await EffectService.removeEffectsOfType(champion.userId, 'bonus_points');
+      await EffectService.removeEffectsOfType(champion.userId, 'champion_crown');
       await EffectService.addEffect(champion.userId, {
         type: 'bonus_points',
         meta: { multiplier: 1.1 },
