@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { type Colors } from '../utils/colors';
 import { useColors } from '../context/ThemeContext';
@@ -21,7 +21,7 @@ export const LeaderboardItem: React.FC<LeaderboardItemProps> = ({
   points,
   streak,
   isCurrentUser,
-  completedToday
+  completedToday,
 }) => {
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -58,21 +58,38 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+      },
+      android: { elevation: 4 },
+      default: {},
+    }),
   },
-  cardHighlight: { borderWidth: 2, borderColor: colors.primary },
-  rankBox: { width: 44, alignItems: 'center', justifyContent: 'center' },
-  rank: { fontSize: 24, fontWeight: '700', color: colors.text },
-  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, flexWrap: 'wrap' },
-  info: { flex: 1 },
-  name: { fontSize: 17, fontWeight: '700', color: colors.text },
-  nameHighlight: { color: colors.primary },
-  meta: { fontSize: 13, color: colors.muted, marginTop: 2 }
+  cardHighlight: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.successLight,
+  },
+  rankBox: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+  },
+  rank: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' },
+  info: { flex: 1, minWidth: 0 },
+  name: { fontSize: 16, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
+  nameHighlight: { color: colors.primaryDark },
+  meta: { fontSize: 12, color: colors.muted, lineHeight: 16 },
 });

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { type Colors } from '../utils/colors';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { type Colors, ui } from '../utils/colors';
 import { useColors } from '../context/ThemeContext';
 import { dateKey, todayKey } from '../utils/date';
 import { useLanguage } from '../context/LanguageContext';
@@ -62,14 +63,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const today = todayKey();
 
   return (
-    <View style={styles.container}>
+    <View style={styles.outer}>
+      <View style={styles.cardShell}>
+        <View style={styles.accentBar} />
+        <View style={styles.cardInner}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => onMonthChange(-1)} style={styles.arrow}>
-          <Text style={styles.arrowText}>←</Text>
+          <Ionicons name="chevron-back" size={22} color={colors.primaryDark} />
         </TouchableOpacity>
         <Text style={styles.month}>{MONTHS[month]} {year}</Text>
         <TouchableOpacity onPress={() => onMonthChange(1)} style={styles.arrow}>
-          <Text style={styles.arrowText}>→</Text>
+          <Ionicons name="chevron-forward" size={22} color={colors.primaryDark} />
         </TouchableOpacity>
       </View>
       <View style={styles.weekdays}>
@@ -89,7 +93,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               style={[
                 styles.cell,
                 { backgroundColor: getBgColor(day) },
-                isToday && styles.todayCell
+                isToday ? styles.todayCell : styles.cellPlain,
               ]}
               onPress={() => day && onDayPress(day)}
               disabled={!day}
@@ -115,43 +119,99 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           );
         })}
       </View>
+        </View>
+      </View>
     </View>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
-  container: { padding: 16 },
+  outer: {
+    paddingHorizontal: ui.screenPadding,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  cardShell: {
+    borderRadius: ui.radiusLg,
+    overflow: 'hidden',
+    backgroundColor: colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+      },
+      android: { elevation: 5 },
+      default: {},
+    }),
+  },
+  accentBar: {
+    height: 3,
+    width: '100%',
+    backgroundColor: colors.primary,
+    opacity: 0.95,
+  },
+  cardInner: {
+    paddingTop: 14,
+    paddingHorizontal: 12,
+    paddingBottom: 14,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16
+    marginBottom: 14,
   },
-  arrow: { padding: 8 },
-  arrowText: { fontSize: 20, fontWeight: '700', color: colors.primary },
-  month: { fontSize: 18, fontWeight: '700', color: colors.text },
+  arrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.successLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary + '30',
+  },
+  month: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.3,
+  },
   weekdays: {
     flexDirection: 'row',
-    marginBottom: 8
+    marginBottom: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 10,
+    backgroundColor: colors.background,
   },
   weekdayLabel: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.muted
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    letterSpacing: 0.2,
   },
   grid: {
     flexDirection: 'row',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   cell: {
     width: '14.28%',
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    marginBottom: 4
+    marginBottom: 5,
+  },
+  /** Bugün dışı: çerçeve / yuvarlak halka yok */
+  cellPlain: {
+    borderWidth: 0,
+    borderRadius: 0,
   },
   cellInner: {
     alignItems: 'center',
@@ -171,14 +231,20 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     borderRadius: 2.5
   },
   todayCell: {
-    borderWidth: 2,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 4,
-    elevation: 6
+    borderWidth: 2.5,
+    borderColor: colors.primaryDark,
+    borderRadius: 999,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.35,
+        shadowRadius: 5,
+      },
+      android: { elevation: 5 },
+      default: {},
+    }),
   },
-  cellText: { fontSize: 14, fontWeight: '600', color: colors.text },
-  todayCellText: { fontWeight: '800' }
+  cellText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  todayCellText: { fontWeight: '800', color: colors.primaryDark },
 });

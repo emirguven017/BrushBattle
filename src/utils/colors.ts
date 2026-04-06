@@ -21,35 +21,9 @@ export const lightColors = {
   gradientEnd: '#27AE60',
   iosGroupedBg: '#F2F2F7',
   inputBg: '#FFFFFF',
-  tabBarBg: '#FFFFFF',
+  /** Alt menü — ana marka yeşili ile bütün */
+  tabBarBg: '#2ECC71',
   overlay: 'rgba(0,0,0,0.45)',
-};
-
-export const darkColors: Colors = {
-  primary: '#2ECC71',
-  primaryDark: '#27AE60',
-  accent: '#5DADE2',
-  accentLight: '#1B2838',
-  background: '#1C1C1E',
-  text: '#F5F5F7',
-  textSecondary: '#A1A1A6',
-  muted: '#8E8E93',
-  success: '#30D158',
-  successLight: '#1A3A2A',
-  warning: '#FFD60A',
-  warningLight: '#3A3000',
-  error: '#FF453A',
-  errorLight: '#3A1A1A',
-  white: '#FFFFFF',
-  card: '#2C2C2E',
-  cardBorder: '#3A3A3C',
-  shadow: '#00000030',
-  gradientStart: '#2ECC71',
-  gradientEnd: '#27AE60',
-  iosGroupedBg: '#000000',
-  inputBg: '#3A3A3C',
-  tabBarBg: '#1C1C1E',
-  overlay: 'rgba(0,0,0,0.7)',
 };
 
 export type Colors = typeof lightColors;

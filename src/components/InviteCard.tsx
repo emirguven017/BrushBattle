@@ -58,36 +58,42 @@ export const InviteCard: React.FC<InviteCardProps> = ({
 const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 22,
+    padding: 22,
+    marginBottom: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.05)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 4
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
   },
   groupName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: colors.primary,
-    marginBottom: 16,
-    textAlign: 'center'
+    marginBottom: 18,
+    textAlign: 'center',
+    letterSpacing: -0.4,
   },
   codeBox: {
     backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.cardBorder,
   },
-  codeLabel: { fontSize: 12, color: colors.muted, marginBottom: 4 },
-  code: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: 4 },
+  codeLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 6, letterSpacing: 0.2 },
+  code: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: 5 },
   btn: {
     backgroundColor: colors.accent,
     borderRadius: 14,
-    padding: 16,
-    alignItems: 'center'
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    alignItems: 'center',
   },
-  btnText: { color: colors.white, fontSize: 16, fontWeight: '700' }
+  btnText: { color: colors.white, fontSize: 16, fontWeight: '800' },
 });

@@ -15,8 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { type Colors } from '../utils/colors';
-import { isIosUi } from '../utils/iosUi';
 import { useColors } from '../context/ThemeContext';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 import { useLanguage } from '../context/LanguageContext';
 import { NotificationService } from '../services/NotificationService';
 import {
@@ -611,7 +611,6 @@ export const WelcomeWizardScreen: React.FC<WelcomeWizardScreenProps> = ({
           <View style={styles.notifMock}>
             <View style={styles.notifMockHeader}>
               <Image source={APP_LOGO} style={styles.notifMockLogo} resizeMode="contain" />
-              <Text style={styles.notifMockApp}>{t('appName')}</Text>
               <Text style={styles.notifMockNow}>now</Text>
             </View>
             <Text style={styles.notifMockTitle}>{t('wwNotifPreviewTitle')}</Text>
@@ -633,18 +632,18 @@ export const WelcomeWizardScreen: React.FC<WelcomeWizardScreenProps> = ({
     step === 10 || step === 11 ? undefined : ('arrow-forward' as const);
 
   return (
+    <BrandedScreenBackground>
     <View
       style={[
         styles.root,
         { paddingTop: insets.top },
-        isIosUi && { backgroundColor: colors.iosGroupedBg },
       ]}
     >
       <View style={styles.topBar}>
         {showBack ? (
           <TouchableOpacity onPress={goBack} style={styles.backBtn} hitSlop={12}>
-            <Ionicons name="chevron-back" size={22} color={isIosUi ? '#007AFF' : colors.accent} />
-            <Text style={[styles.backText, isIosUi && { color: '#007AFF' }]}>{t('wwBack')}</Text>
+            <Ionicons name="chevron-back" size={22} color={colors.white} />
+            <Text style={styles.backText}>{t('wwBack')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.backPlaceholder} />
@@ -687,14 +686,15 @@ export const WelcomeWizardScreen: React.FC<WelcomeWizardScreenProps> = ({
         </View>
       ) : null}
     </View>
+    </BrandedScreenBackground>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+  root: { flex: 1, backgroundColor: 'transparent' },
   topBar: { paddingHorizontal: 8, minHeight: 44, justifyContent: 'center' },
   backBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 8 },
-  backText: { fontSize: 16, color: colors.accent, fontWeight: '600' },
+  backText: { fontSize: 16, color: colors.white, fontWeight: '600' },
   backPlaceholder: { height: 44 },
   progressRow: {
     flexDirection: 'row',
@@ -708,14 +708,14 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.cardBorder,
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
   progressDotActive: {
     width: 22,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
   },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: 'transparent' },
   scrollContent: { paddingHorizontal: 20, paddingTop: 8 },
   heroIconCircle: {
     alignSelf: 'center',

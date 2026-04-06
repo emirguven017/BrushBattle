@@ -13,6 +13,7 @@ interface AppBrandingProps {
   tone: AppBrandingTone;
   logoSize?: number;
   compact?: boolean;
+  showLogoFrame?: boolean;
   style?: StyleProp<ViewStyle>;
   titleStyle?: StyleProp<TextStyle>;
 }
@@ -23,6 +24,7 @@ export const AppBranding: React.FC<AppBrandingProps> = ({
   tone,
   logoSize = 92,
   compact = false,
+  showLogoFrame = true,
   style,
   titleStyle,
 }) => {
@@ -32,14 +34,23 @@ export const AppBranding: React.FC<AppBrandingProps> = ({
   const onBrand = tone === 'onBrand';
   return (
     <View style={[styles.wrap, style]}>
-      <View style={[styles.logoFrame, onBrand ? styles.logoFrameOnBrand : styles.logoFrameOnLight]}>
+      {showLogoFrame ? (
+        <View style={[styles.logoFrame, onBrand ? styles.logoFrameOnBrand : styles.logoFrameOnLight]}>
+          <Image
+            source={LOGO}
+            style={{ width: compact ? Math.round(logoSize * 0.82) : logoSize, height: compact ? Math.round(logoSize * 0.82) : logoSize }}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+        </View>
+      ) : (
         <Image
           source={LOGO}
           style={{ width: compact ? Math.round(logoSize * 0.82) : logoSize, height: compact ? Math.round(logoSize * 0.82) : logoSize }}
           resizeMode="contain"
           accessibilityIgnoresInvertColors
         />
-      </View>
+      )}
       {title ? (
         <Text
           style={[

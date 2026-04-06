@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { type Colors, headerTitle } from '../utils/colors';
+import { type Colors, headerTitle, ui } from '../utils/colors';
 import { isIosUi } from '../utils/iosUi';
 import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
@@ -17,6 +17,7 @@ import { EffectService } from '../services/effectService';
 import type { ActiveEffect, EffectType, MarketItemId, User } from '../types';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
 import { AppConfirmModal } from '../components/AppConfirmModal';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 
 const ITEM_ORDER: MarketItemId[] = [
   'freeze',
@@ -129,16 +130,6 @@ export const UseFeatureScreen: React.FC = () => {
       load().catch(() => {});
     }, [load])
   );
-
-  const subtitleText = useMemo(() => {
-    if (isSelfMode) return t('useFeatureSubtitleSelfOnly');
-    if (isOpponentMode) {
-      const name =
-        members.find((m) => m.id === initialTargetUserId)?.username ?? '';
-      return t('useFeatureSubtitleOpponentOnly').replace('{name}', name || '…');
-    }
-    return t('useFeatureSubtitle');
-  }, [isSelfMode, isOpponentMode, members, initialTargetUserId, t]);
 
   const attackFeatureItems = useMemo(
     () => ITEM_ORDER
@@ -265,9 +256,13 @@ export const UseFeatureScreen: React.FC = () => {
           : t('use');
     return (
       <View key={id} style={styles.itemCard}>
+        <View style={styles.itemAccent} />
+        <View style={styles.itemCardBody}>
+        <View style={styles.itemIconWrap}>
+          <Ionicons name={ITEM_ICONS[id]} size={22} color={colors.primaryDark} />
+        </View>
         <View style={styles.itemInfo}>
           <View style={styles.itemTitleRow}>
-            <Ionicons name={ITEM_ICONS[id]} size={16} color={colors.text} />
             <Text style={styles.itemTitle}>{t(itemTitleKey[id])}</Text>
           </View>
           <Text style={styles.itemDesc}>{t(itemDescKey[id])}</Text>
@@ -291,6 +286,7 @@ export const UseFeatureScreen: React.FC = () => {
         >
           <Text style={styles.useBtnText}>{useLabel}</Text>
         </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -298,24 +294,23 @@ export const UseFeatureScreen: React.FC = () => {
   if (!user) return null;
 
   return (
-    <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+    <BrandedScreenBackground>
+    <View style={styles.wrapper}>
       {!isIosUi ? (
         <View style={[styles.header, { paddingTop: insets.top }]}>
           <Text style={styles.title}>{t('useFeatureTitle')}</Text>
-          <Text style={styles.subtitle}>{subtitleText}</Text>
         </View>
       ) : null}
 
       <ScrollView
-        style={[styles.container, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
+        style={styles.container}
         contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
       >
-        {isIosUi && subtitleText ? (
-          <Text style={[styles.subtitleIos, { marginBottom: 12 }]}>{subtitleText}</Text>
-        ) : null}
         {isFullMode && (
           <View style={styles.targetBox}>
-            <Text style={styles.sectionTitle}>{t('selectedTarget')}</Text>
+            <View style={styles.targetAccent} />
+            <View style={styles.targetInner}>
+            <Text style={styles.sectionTitleCard}>{t('selectedTarget')}</Text>
             {members.length === 0 ? (
               <Text style={styles.emptyText}>{t('noTargetAvailable')}</Text>
             ) : (
@@ -335,49 +330,56 @@ export const UseFeatureScreen: React.FC = () => {
                 ))}
               </View>
             )}
+            </View>
           </View>
         )}
 
         {isSelfMode && (
           <View style={styles.targetBox}>
-            <Text style={styles.sectionTitle}>{t('selectedTarget')}</Text>
+            <View style={styles.targetAccent} />
+            <View style={styles.targetInner}>
+            <Text style={styles.sectionTitleCard}>{t('selectedTarget')}</Text>
             <View style={styles.fixedTargetPill}>
               <Text style={styles.fixedTargetPillText}>{t('useFeatureContextSelf')}</Text>
+            </View>
             </View>
           </View>
         )}
 
         {isOpponentMode && (
           <View style={styles.targetBox}>
-            <Text style={styles.sectionTitle}>{t('selectedTarget')}</Text>
+            <View style={styles.targetAccent} />
+            <View style={styles.targetInner}>
+            <Text style={styles.sectionTitleCard}>{t('selectedTarget')}</Text>
             <View style={styles.fixedTargetPill}>
               <Text style={styles.fixedTargetPillText}>
                 {members.find((m) => m.id === initialTargetUserId)?.username ?? '…'}
               </Text>
+            </View>
             </View>
           </View>
         )}
 
         {isOpponentMode && (
           <>
-            <Text style={styles.sectionTitle}>{t('targetFeatures')}</Text>
+            <Text style={styles.sectionTitleBranded}>{t('targetFeatures')}</Text>
             {attackFeatureItems.map(({ id, quantity }) => renderItemCard(id, quantity))}
           </>
         )}
 
         {isSelfMode && (
           <>
-            <Text style={styles.sectionTitle}>{t('selfFeatures')}</Text>
+            <Text style={styles.sectionTitleBranded}>{t('selfFeatures')}</Text>
             {selfFeatureItems.map(({ id, quantity }) => renderItemCard(id, quantity))}
           </>
         )}
 
         {isFullMode && (
           <>
-            <Text style={styles.sectionTitle}>{t('targetFeatures')}</Text>
+            <Text style={styles.sectionTitleBranded}>{t('targetFeatures')}</Text>
             {attackFeatureItems.map(({ id, quantity }) => renderItemCard(id, quantity))}
 
-            <Text style={[styles.sectionTitle, styles.selfSectionTitle]}>{t('selfFeatures')}</Text>
+            <Text style={[styles.sectionTitleBranded, styles.selfSectionTitle]}>{t('selfFeatures')}</Text>
             {selfFeatureItems.map(({ id, quantity }) => renderItemCard(id, quantity))}
           </>
         )}
@@ -404,11 +406,23 @@ export const UseFeatureScreen: React.FC = () => {
       }}
     />
     </View>
+    </BrandedScreenBackground>
   );
 };
 
+const cardShadow = Platform.select({
+  ios: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+  },
+  android: { elevation: 4 },
+  default: {},
+});
+
 const createStyles = (colors: Colors) => StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
+  wrapper: { flex: 1, backgroundColor: 'transparent' },
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
@@ -416,25 +430,44 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     alignItems: 'center',
   },
   title: { ...headerTitle },
-  subtitle: { marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.9)', textAlign: 'center' },
-  subtitleIos: {
-    color: colors.muted,
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 16,
-    marginTop: -4,
-  },
   container: { flex: 1 },
   content: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 8 },
-  selfSectionTitle: { marginTop: 8 },
+  /** Yeşil zemin üzerinde */
+  sectionTitleBranded: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.92)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.55,
+    marginBottom: 14,
+    marginTop: 4,
+  },
+  selfSectionTitle: { marginTop: 10 },
+  /** Beyaz kart içi küçük başlık */
+  sectionTitleCard: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textSecondary,
+    letterSpacing: 0.35,
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
   targetBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderRadius: ui.radiusLg,
+    overflow: 'hidden',
     backgroundColor: colors.card,
-    padding: 12,
-    marginBottom: 10,
+    marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...cardShadow,
+  },
+  targetAccent: {
+    height: 3,
+    backgroundColor: colors.primary,
+  },
+  targetInner: {
+    paddingHorizontal: ui.cardPadding,
+    paddingVertical: ui.cardPadding,
   },
   targetChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   targetChip: {
@@ -448,58 +481,78 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   targetChipText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   targetChipTextActive: { color: colors.white },
   emptyCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderRadius: ui.radiusLg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
     backgroundColor: colors.card,
     padding: 14,
+    ...cardShadow,
   },
   emptyText: { color: colors.textSecondary, fontSize: 13 },
   fixedTargetPill: {
     alignSelf: 'flex-start',
     backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   fixedTargetPillText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: colors.white,
   },
   itemCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderRadius: ui.radiusLg,
+    overflow: 'hidden',
     backgroundColor: colors.card,
-    padding: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...cardShadow,
   },
-  itemInfo: { flex: 1 },
+  itemAccent: {
+    height: 3,
+    backgroundColor: colors.primary,
+  },
+  itemCardBody: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: ui.cardPadding,
+    paddingVertical: ui.cardPadding,
+    gap: 12,
+  },
+  itemIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${colors.primary}18`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  itemInfo: { flex: 1, minWidth: 0 },
   itemTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
-  itemDesc: { marginTop: 2, fontSize: 12, color: colors.textSecondary },
-  itemQty: { marginTop: 6, fontSize: 12, color: colors.muted, fontWeight: '700' },
+  itemDesc: { marginTop: 4, fontSize: 12, lineHeight: 17, color: colors.textSecondary },
+  itemQty: { marginTop: 8, fontSize: 12, color: colors.muted, fontWeight: '700' },
   marketLinkBtn: {
-    marginTop: 6,
+    marginTop: 8,
     alignSelf: 'flex-start',
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.accent,
     backgroundColor: colors.accentLight,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   marketLinkText: { fontSize: 11, fontWeight: '800', color: colors.accent },
   useBtn: {
-    borderRadius: 10,
+    borderRadius: 999,
     backgroundColor: colors.accent,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    minWidth: 84,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    minWidth: 88,
     alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
   useBtnActiveState: {
     backgroundColor: colors.primary,

@@ -11,7 +11,12 @@ import { db } from '../firebase/config';
 import { translations } from '../i18n/translations';
 import { getStoredLanguage } from './NotificationService';
 
-const INBOX_KIND = 'attack_blocked_by_shield' as const;
+const INBOX_KIND_SHIELD_BLOCKED = 'attack_blocked_by_shield' as const;
+const INBOX_KIND_SCORE_DROP_HIT = 'score_drop_hit' as const;
+
+type InboxHandlers = {
+  onScoreDropFeedback?: (payload: { title: string; message: string }) => void;
+};
 
 export const NotificationInboxService = {
   async pushShieldBlocked(
@@ -20,9 +25,24 @@ export const NotificationInboxService = {
     attackItemId: 'freeze' | 'score_drop'
   ): Promise<void> {
     await addDoc(collection(db, 'users', defenderUserId, 'notificationInbox'), {
-      kind: INBOX_KIND,
+      kind: INBOX_KIND_SHIELD_BLOCKED,
       attackerUserId,
       attackItemId,
+      createdAt: Date.now(),
+    });
+  },
+
+  async pushScoreDropHit(
+    targetUserId: string,
+    attackerUserId: string,
+    droppedPoints: number,
+    currentPoints: number
+  ): Promise<void> {
+    await addDoc(collection(db, 'users', targetUserId, 'notificationInbox'), {
+      kind: INBOX_KIND_SCORE_DROP_HIT,
+      attackerUserId,
+      droppedPoints,
+      currentPoints,
       createdAt: Date.now(),
     });
   },
@@ -30,7 +50,7 @@ export const NotificationInboxService = {
   /**
    * Savunan kullanıcının cihazında: gelen kutusundaki yeni kayıtlar için yerel bildirim gösterir.
    */
-  subscribeInbox(userId: string): () => void {
+  subscribeInbox(userId: string, handlers?: InboxHandlers): () => void {
     const col = collection(db, 'users', userId, 'notificationInbox');
     return onSnapshot(
       col,
@@ -41,15 +61,38 @@ export const NotificationInboxService = {
             kind?: string;
             attackerUserId?: string;
             attackItemId?: string;
+            droppedPoints?: number;
+            currentPoints?: number;
           };
-          if (data.kind !== INBOX_KIND || !data.attackerUserId || !data.attackItemId) return;
           const docId = change.doc.id;
-          void processShieldBlockedInbox(
-            userId,
-            docId,
-            data.attackerUserId,
-            data.attackItemId as 'freeze' | 'score_drop'
-          );
+          if (
+            data.kind === INBOX_KIND_SHIELD_BLOCKED &&
+            data.attackerUserId &&
+            data.attackItemId
+          ) {
+            void processShieldBlockedInbox(
+              userId,
+              docId,
+              data.attackerUserId,
+              data.attackItemId as 'freeze' | 'score_drop'
+            );
+            return;
+          }
+          if (
+            data.kind === INBOX_KIND_SCORE_DROP_HIT &&
+            data.attackerUserId &&
+            typeof data.droppedPoints === 'number' &&
+            typeof data.currentPoints === 'number'
+          ) {
+            void processScoreDropHitInbox(
+              userId,
+              docId,
+              data.attackerUserId,
+              data.droppedPoints,
+              data.currentPoints,
+              handlers
+            );
+          }
         });
       },
       () => {
@@ -93,6 +136,43 @@ async function processShieldBlockedInbox(
     });
 
     await deleteDoc(doc(db, 'users', defenderUserId, 'notificationInbox', inboxDocId));
+  } catch {
+    // Sessiz: izin / ağ hatası
+  }
+}
+
+async function processScoreDropHitInbox(
+  userId: string,
+  inboxDocId: string,
+  attackerUserId: string,
+  droppedPoints: number,
+  currentPoints: number,
+  handlers?: InboxHandlers
+): Promise<void> {
+  try {
+    const lang = await getStoredLanguage();
+    const attackerSnap = await getDoc(doc(db, 'users', attackerUserId));
+    const attackerName =
+      (attackerSnap.data() as { username?: string } | undefined)?.username ?? '?';
+
+    const title = translations[lang].notifScoreDropHitTitle;
+    const body = translations[lang].notifScoreDropHitBody
+      .replace('{attacker}', attackerName)
+      .replace('{dropped}', String(droppedPoints))
+      .replace('{current}', String(currentPoints));
+
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      await Notifications.requestPermissionsAsync();
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: { title, body },
+      trigger: null,
+    });
+
+    handlers?.onScoreDropFeedback?.({ title, message: body });
+    await deleteDoc(doc(db, 'users', userId, 'notificationInbox', inboxDocId));
   } catch {
     // Sessiz: izin / ağ hatası
   }

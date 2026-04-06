@@ -18,6 +18,7 @@ import { AppWordmark } from '../components/AppWordmark';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useColors } from '../context/ThemeContext';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 
 const REMEMBER_ME_EMAIL_KEY = '@brush_battle_remember_email';
 
@@ -120,16 +121,16 @@ export const LoginScreen: React.FC = () => {
   };
 
   const scrollBottomPad = Math.max(insets.bottom, 16) + 28;
-  const placeholderColor = colors.muted;
+  const placeholderColor = '#8A939B';
 
   if (showForgotPassword) {
     return (
-      <KeyboardAvoidingView
-        style={styles.wrapper}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <BrandedScreenBackground>
+        <KeyboardAvoidingView
+          style={styles.kav}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         <View style={[styles.screen, { paddingTop: insets.top }]}>
-          {Platform.OS !== 'ios' ? <View style={styles.heroBanner} /> : null}
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={[
@@ -142,9 +143,8 @@ export const LoginScreen: React.FC = () => {
             showsVerticalScrollIndicator={false}
           >
             {Platform.OS === 'ios' ? (
-              <>
-                <Text style={styles.iosForgotTitle}>{t('forgotPasswordTitle')}</Text>
-                <AppBranding title="" tone="onLight" logoSize={96} style={styles.brandingBlockForgotIOS} />
+              <View style={styles.formCardIOS}>
+                <AppBranding title="" tone="onLight" logoSize={106} showLogoFrame={false} style={styles.brandingBlockForgotIOS} />
                 <Text style={styles.forgotDescIOS}>{t('forgotPasswordDesc')}</Text>
                 <View style={styles.iosInsetGroup}>
                   <TextInput
@@ -172,11 +172,10 @@ export const LoginScreen: React.FC = () => {
                 >
                   <Text style={styles.switch}>{t('cancel')}</Text>
                 </TouchableOpacity>
-              </>
+              </View>
             ) : (
               <View style={styles.formCard}>
-                <Text style={styles.cardEyebrow}>{t('forgotPasswordTitle')}</Text>
-                <AppBranding title={t('appName')} tone="onLight" logoSize={76} style={styles.brandingBlockForgot} />
+                <AppBranding title={t('appName')} tone="onLight" logoSize={86} showLogoFrame={false} style={styles.brandingBlockForgot} />
                 <Text style={styles.forgotDesc}>{t('forgotPasswordDesc')}</Text>
                 <TextInput
                   style={styles.input}
@@ -206,17 +205,18 @@ export const LoginScreen: React.FC = () => {
             )}
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </BrandedScreenBackground>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.wrapper}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <BrandedScreenBackground>
+      <KeyboardAvoidingView
+        style={styles.kav}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={[styles.screen, { paddingTop: insets.top }]}>
-        {Platform.OS !== 'ios' ? <View style={styles.heroBanner} /> : null}
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[
@@ -229,8 +229,8 @@ export const LoginScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         >
           {Platform.OS === 'ios' ? (
-            <>
-              <AppBranding title="" tone="onLight" logoSize={112} style={styles.brandingBlockIOS} />
+            <View style={styles.formCardIOS}>
+              <AppBranding title="" tone="onLight" logoSize={124} showLogoFrame={false} style={styles.brandingBlockIOS} />
               <AppWordmark name={t('appName')} variant="login" style={styles.iosWordmark} />
               <View style={styles.iosInsetGroup}>
                 {isSignUp ? (
@@ -271,7 +271,7 @@ export const LoginScreen: React.FC = () => {
                     activeOpacity={0.7}
                   >
                     <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                       size={22}
                       color={colors.muted}
                     />
@@ -314,10 +314,10 @@ export const LoginScreen: React.FC = () => {
                   {isSignUp ? t('haveAccount') : t('noAccount')}
                 </Text>
               </TouchableOpacity>
-            </>
+            </View>
           ) : (
             <View style={styles.formCard}>
-              <AppBranding title={t('appName')} tone="onLight" logoSize={84} style={styles.brandingBlock} />
+              <AppBranding title={t('appName')} tone="onLight" logoSize={96} showLogoFrame={false} style={styles.brandingBlock} />
               {isSignUp ? (
                 <TextInput
                   style={styles.input}
@@ -352,7 +352,7 @@ export const LoginScreen: React.FC = () => {
                   activeOpacity={0.7}
                 >
                   <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                     size={22}
                     color={colors.muted}
                   />
@@ -398,32 +398,20 @@ export const LoginScreen: React.FC = () => {
           )}
         </ScrollView>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </BrandedScreenBackground>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
-  wrapper: {
+  kav: {
     flex: 1,
-    ...Platform.select({
-      ios: { backgroundColor: colors.iosGroupedBg },
-      default: { backgroundColor: colors.background },
-    }),
   },
   screen: {
     flex: 1,
-    ...Platform.select({
-      ios: { backgroundColor: colors.iosGroupedBg },
-      default: { backgroundColor: colors.background },
-    }),
+    backgroundColor: 'transparent',
   },
-  heroBanner: {
-    height: 108,
-    backgroundColor: colors.primary,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-  },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, backgroundColor: 'transparent' },
   scrollContent: {
     paddingHorizontal: 18,
     paddingTop: 0,
@@ -432,13 +420,32 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   scrollContentIOS: {
     paddingHorizontal: 16,
     paddingTop: 12,
+    justifyContent: 'center',
+  },
+  formCardIOS: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 26,
+    paddingBottom: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.cardBorder,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      default: {},
+    }),
   },
   iosForgotTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 34,
+    fontWeight: '800',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
     paddingHorizontal: 8,
   },
   brandingBlockIOS: {
@@ -448,7 +455,7 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   iosWordmark: {
     alignSelf: 'center',
-    marginBottom: 22,
+    marginBottom: 20,
   },
   brandingBlockForgotIOS: {
     alignSelf: 'center',
@@ -456,8 +463,10 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     marginTop: 2,
   },
   iosInsetGroup: {
-    backgroundColor: colors.white,
-    borderRadius: 10,
+    backgroundColor: '#F4F6F7',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E7ECEA',
     overflow: 'hidden',
     marginBottom: 16,
     ...Platform.select({
@@ -478,10 +487,10 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   iosGroupField: {
     borderWidth: 0,
     backgroundColor: 'transparent',
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 16,
     fontSize: 17,
-    color: colors.text,
+    color: '#111111',
     minHeight: 48,
   },
   iosPasswordRow: {
@@ -494,10 +503,10 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     flex: 1,
     borderWidth: 0,
     backgroundColor: 'transparent',
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 16,
     fontSize: 17,
-    color: colors.text,
+    color: '#111111',
     minHeight: 48,
   },
   iosEyeButton: {
@@ -538,16 +547,22 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   formCard: {
     backgroundColor: colors.white,
-    borderRadius: 22,
+    borderRadius: 24,
     paddingHorizontal: 22,
     paddingTop: 26,
     paddingBottom: 28,
-    marginTop: -52,
+    marginTop: 0,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(46, 204, 113, 0.12)',
+    borderColor: colors.cardBorder,
     ...Platform.select({
       android: {
         elevation: 6,
+      },
+      ios: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
       },
       default: {},
     }),
@@ -570,20 +585,21 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingVertical: 15,
     paddingHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: '#FAFCFB',
+    backgroundColor: '#F4F6F7',
     fontSize: 16,
-    color: colors.text,
+    color: '#111111',
+    borderColor: '#E7ECEA',
   },
   passwordInputWrap: {
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: 14,
+    borderColor: '#E7ECEA',
+    borderRadius: 12,
     marginBottom: 12,
-    backgroundColor: '#FAFCFB',
+    backgroundColor: '#F4F6F7',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -598,7 +614,7 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: colors.text,
+    color: '#111111',
   },
   error: {
     color: colors.error,
@@ -623,10 +639,10 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   forgotLinkText: {
     fontSize: 15,
-    fontWeight: '400',
+    fontWeight: '500',
     ...Platform.select({
-      ios: { color: '#007AFF' },
-      default: { color: colors.accent, fontWeight: '600', fontSize: 14 },
+      ios: { color: colors.primaryDark, fontWeight: '500' },
+      default: { color: colors.primaryDark, fontWeight: '600', fontSize: 14 },
     }),
   },
   rememberRow: {
@@ -660,7 +676,7 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   btn: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 4,
@@ -669,10 +685,10 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     ...Platform.select({
       ios: {
         borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.12,
-        shadowRadius: 4,
+        shadowColor: colors.primaryDark,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.24,
+        shadowRadius: 14,
       },
       android: {
         elevation: 4,
@@ -684,9 +700,9 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   switch: {
     marginTop: 22,
     textAlign: 'center',
-    fontSize: 17,
+    fontSize: 16,
     ...Platform.select({
-      ios: { color: '#007AFF', fontWeight: '400' },
+      ios: { color: colors.accent, fontWeight: '500' },
       default: { color: colors.accent, fontWeight: '600', fontSize: 15 },
     }),
   },

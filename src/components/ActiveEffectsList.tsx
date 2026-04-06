@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { type Colors } from '../utils/colors';
+import { type Colors, ui } from '../utils/colors';
 import { useColors } from '../context/ThemeContext';
 import type { ActiveEffect } from '../types';
 import { useLanguage } from '../context/LanguageContext';
@@ -87,11 +87,21 @@ export const ActiveEffectsList: React.FC<ActiveEffectsListProps> = ({ effects })
 const createStyles = (colors: Colors) => StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderRadius: ui.radiusLg,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+      },
+      android: { elevation: 5 },
+      default: {},
+    }),
   },
   headerRow: {
     flexDirection: 'row',
@@ -115,13 +125,13 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.cardBorder,
     backgroundColor: colors.background,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 8
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
   },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, marginRight: 6 },
   iconChip: {

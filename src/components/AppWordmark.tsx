@@ -45,13 +45,13 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   brushNav: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.primary,
+    color: colors.white,
     letterSpacing: -0.35,
   },
   timerNav: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.text,
+    color: '#111111',
     letterSpacing: -0.35,
   },
   brushLogin: {
@@ -63,7 +63,7 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   timerLogin: {
     fontSize: 28,
     fontWeight: '800',
-    color: colors.text,
+    color: '#111111',
     letterSpacing: -0.65,
   },
 });

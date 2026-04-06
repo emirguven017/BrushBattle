@@ -2,8 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { type Colors, headerTitle } from '../utils/colors';
-import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { type Colors } from '../utils/colors';
 import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
@@ -11,10 +10,10 @@ import { GroupService } from '../services/GroupService';
 import { TimePicker24 } from '../components/TimePicker24';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 
 export const OnboardingScreen: React.FC = () => {
   const colors = useColors();
-  const ios = useMemo(() => createIosStyles(colors), [colors]);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
@@ -57,112 +56,32 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   return (
+    <BrandedScreenBackground>
     <KeyboardAvoidingView
-      style={[
-        styles.wrapper,
-        { backgroundColor: isIosUi ? colors.iosGroupedBg : colors.primary },
-      ]}
+      style={styles.kav}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
-      <View
-        style={[
-          styles.greenHeader,
-          isIosUi && { backgroundColor: colors.iosGroupedBg },
-          { paddingTop: insets.top },
-        ]}
-      >
-        <View style={[styles.titleBar, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
-          <Text style={[styles.title, isIosUi && ios.iosScreenTitleText]}>{t('welcomeTitle')}</Text>
-        </View>
-      </View>
       <ScrollView
-        style={[styles.scrollView, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
-        contentContainerStyle={styles.container}
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.container,
+          { paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 24) + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <TextInput style={styles.input} placeholder={t('usernamePlaceholder')} value={username} onChangeText={setUsername} />
-        <View>
-          <Text style={styles.timeLabel}>{t('morningTime')}</Text>
-          <TouchableOpacity
-            style={styles.timeButton}
-            onPress={() => setShowMorningPicker(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.timeButtonRow}>
-              <Ionicons name="sunny-outline" size={18} color={colors.text} />
-              <Text style={styles.timeButtonText}> {morningTime}</Text>
-            </View>
-            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-          </TouchableOpacity>
-          {showMorningPicker && (
-            <View style={styles.pickerContainer}>
-              <TimePicker24 value={morningTime} onChange={setMorningTime} />
-              <TouchableOpacity
-                style={styles.pickerDoneBtn}
-                onPress={() => setShowMorningPicker(false)}
-              >
-                <Text style={styles.pickerDoneText}>{t('ok')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+        <View style={styles.topCard}>
+          <Text style={styles.welcomeTitle}>{t('welcomeTitle')}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder={t('usernamePlaceholder')}
+            placeholderTextColor="#8A939B"
+            value={username}
+            onChangeText={setUsername}
+          />
         </View>
-        {dailySessionCount === 3 && (
-          <View>
-            <Text style={styles.timeLabel}>{t('middayTime')}</Text>
-            <TouchableOpacity
-              style={styles.timeButton}
-              onPress={() => setShowMiddayPicker(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.timeButtonRow}>
-                <Ionicons name="sunny-outline" size={18} color={colors.text} />
-                <Text style={styles.timeButtonText}> {middayTime}</Text>
-              </View>
-              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-            </TouchableOpacity>
-            {showMiddayPicker && (
-              <View style={styles.pickerContainer}>
-                <TimePicker24 value={middayTime} onChange={setMiddayTime} />
-                <TouchableOpacity
-                  style={styles.pickerDoneBtn}
-                  onPress={() => setShowMiddayPicker(false)}
-                >
-                  <Text style={styles.pickerDoneText}>{t('ok')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-        {dailySessionCount >= 2 && (
-          <View>
-            <Text style={styles.timeLabel}>{t('eveningTime')}</Text>
-            <TouchableOpacity
-              style={styles.timeButton}
-              onPress={() => setShowEveningPicker(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.timeButtonRow}>
-                <Ionicons name="moon-outline" size={18} color={colors.text} />
-                <Text style={styles.timeButtonText}> {eveningTime}</Text>
-              </View>
-              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
-            </TouchableOpacity>
-            {showEveningPicker && (
-              <View style={styles.pickerContainer}>
-                <TimePicker24 value={eveningTime} onChange={setEveningTime} />
-                <TouchableOpacity
-                  style={styles.pickerDoneBtn}
-                  onPress={() => setShowEveningPicker(false)}
-                >
-                  <Text style={styles.pickerDoneText}>{t('ok')}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-        <View style={styles.perDayWrap}>
+        <View style={styles.scheduleCard}>
           <Text style={styles.timeLabel}>{t('wwPerDayTitle')}</Text>
           <View style={styles.perDayRow}>
             {[1, 2, 3].map((count) => {
@@ -180,6 +99,88 @@ export const OnboardingScreen: React.FC = () => {
               );
             })}
           </View>
+
+          <View style={styles.scheduleDivider} />
+
+          <View>
+            <Text style={styles.timeLabel}>{t('morningTime')}</Text>
+            <TouchableOpacity
+              style={styles.timeButton}
+              onPress={() => setShowMorningPicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.timeButtonRow}>
+                <Ionicons name="sunny-outline" size={18} color="#111111" />
+                <Text style={styles.timeButtonText}> {morningTime}</Text>
+              </View>
+              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+            </TouchableOpacity>
+            {showMorningPicker && (
+              <View style={styles.pickerContainer}>
+                <TimePicker24 value={morningTime} onChange={setMorningTime} />
+                <TouchableOpacity
+                  style={styles.pickerDoneBtn}
+                  onPress={() => setShowMorningPicker(false)}
+                >
+                  <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+          {dailySessionCount === 3 && (
+            <View>
+              <Text style={styles.timeLabel}>{t('middayTime')}</Text>
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => setShowMiddayPicker(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.timeButtonRow}>
+                  <Ionicons name="sunny-outline" size={18} color="#111111" />
+                  <Text style={styles.timeButtonText}> {middayTime}</Text>
+                </View>
+                <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+              </TouchableOpacity>
+              {showMiddayPicker && (
+                <View style={styles.pickerContainer}>
+                  <TimePicker24 value={middayTime} onChange={setMiddayTime} />
+                  <TouchableOpacity
+                    style={styles.pickerDoneBtn}
+                    onPress={() => setShowMiddayPicker(false)}
+                  >
+                    <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+          {dailySessionCount >= 2 && (
+            <View>
+              <Text style={styles.timeLabel}>{t('eveningTime')}</Text>
+              <TouchableOpacity
+                style={styles.timeButton}
+                onPress={() => setShowEveningPicker(true)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.timeButtonRow}>
+                  <Ionicons name="moon-outline" size={18} color="#111111" />
+                  <Text style={styles.timeButtonText}> {eveningTime}</Text>
+                </View>
+                <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+              </TouchableOpacity>
+              {showEveningPicker && (
+                <View style={styles.pickerContainer}>
+                  <TimePicker24 value={eveningTime} onChange={setEveningTime} />
+                  <TouchableOpacity
+                    style={styles.pickerDoneBtn}
+                    onPress={() => setShowEveningPicker(false)}
+                  >
+                    <Text style={styles.pickerDoneText}>{t('ok')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
         </View>
         <View style={styles.groupCard}>
           <View style={styles.groupHeader}>
@@ -189,13 +190,13 @@ export const OnboardingScreen: React.FC = () => {
           </View>
           <View style={styles.groupCreateRow}>
             <View style={styles.groupLabelRow}>
-              <Ionicons name="add-circle-outline" size={14} color={colors.text} />
+              <Ionicons name="add-circle-outline" size={14} color="#111111" />
               <Text style={styles.groupLabel}> {t('newGroupName')}</Text>
             </View>
             <TextInput
               style={styles.groupInput}
               placeholder={t('newGroupName')}
-              placeholderTextColor={colors.muted}
+              placeholderTextColor="#8A939B"
               value={groupName}
               onChangeText={setGroupName}
             />
@@ -207,13 +208,13 @@ export const OnboardingScreen: React.FC = () => {
           </View>
           <View style={styles.groupJoinRow}>
             <View style={styles.groupLabelRow}>
-              <Ionicons name="link-outline" size={14} color={colors.text} />
+              <Ionicons name="link-outline" size={14} color="#111111" />
               <Text style={styles.groupLabel}> {t('inviteCode')}</Text>
             </View>
             <TextInput
               style={styles.groupInput}
               placeholder={t('inviteCode')}
-              placeholderTextColor={colors.muted}
+              placeholderTextColor="#8A939B"
               value={inviteCode}
               onChangeText={setInviteCode}
               autoCapitalize="characters"
@@ -222,52 +223,86 @@ export const OnboardingScreen: React.FC = () => {
           </View>
         </View>
         {err ? <Text style={styles.error}>{err}</Text> : null}
-        <TouchableOpacity style={styles.btn} onPress={handleFinish}>
-          <Text style={styles.btnText}>{t('startBtn')}</Text>
-        </TouchableOpacity>
+        <View style={styles.btnWrap}>
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={handleFinish}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+          >
+            <Text style={styles.btnText}>{t('startBtn')}</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </BrandedScreenBackground>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
-  wrapper: { flex: 1 },
-  greenHeader: { backgroundColor: colors.primary },
-  scrollView: { flex: 1, backgroundColor: colors.background },
-  container: { padding: 24, paddingBottom: 40 },
-  titleBar: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center'
+  kav: {
+    flex: 1,
   },
-  title: { ...headerTitle },
+  scrollView: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  container: {
+    paddingHorizontal: 18,
+  },
+  topCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.cardBorder,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
+  },
+  welcomeTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111111',
+    textAlign: 'center',
+    marginBottom: 14,
+  },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#E7ECEA',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 12,
-    backgroundColor: colors.white
+    backgroundColor: '#F4F6F7',
+    color: '#111111',
+    fontSize: 16,
   },
   timeLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 6
+    color: '#4A5F5E',
+    marginBottom: 6,
   },
   timeButton: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#E7ECEA',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    backgroundColor: colors.white
+    backgroundColor: '#F4F6F7',
   },
   timeButtonText: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text
+    color: '#111111',
   },
   timeButtonRow: {
     flexDirection: 'row',
@@ -275,14 +310,34 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   timeButtonHint: {
     fontSize: 12,
-    color: colors.muted,
-    marginTop: 4
+    color: '#8A939B',
+    marginTop: 4,
   },
   pickerContainer: {
     marginBottom: 12
   },
-  perDayWrap: {
-    marginBottom: 12
+  scheduleCard: {
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.cardBorder,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
+  },
+  scheduleDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.cardBorder,
+    marginVertical: 16
   },
   perDayRow: {
     flexDirection: 'row',
@@ -291,19 +346,19 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   perDayChip: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: colors.white,
-    borderRadius: 10,
+    borderColor: '#E7ECEA',
+    backgroundColor: '#F4F6F7',
+    borderRadius: 12,
     paddingVertical: 10,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   perDayChipSelected: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary + '14'
+    backgroundColor: colors.primary + '18',
   },
   perDayChipText: {
-    color: colors.text,
-    fontWeight: '600'
+    color: '#111111',
+    fontWeight: '600',
   },
   perDayChipTextSelected: {
     color: colors.primary
@@ -321,17 +376,22 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   groupCard: {
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 8,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 6
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.cardBorder,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+      },
+      android: { elevation: 6 },
+      default: {},
+    }),
   },
   groupHeader: {
     alignItems: 'center',
@@ -345,8 +405,8 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   groupSubtitle: {
     fontSize: 12,
-    color: colors.muted,
-    marginTop: 4
+    color: '#4A5F5E',
+    marginTop: 4,
   },
   groupCreateRow: {
     marginBottom: 4
@@ -362,17 +422,17 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   groupLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.text,
-    marginBottom: 0
+    color: '#111111',
+    marginBottom: 0,
   },
   groupInput: {
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: '#E7ECEA',
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    color: colors.text,
-    backgroundColor: colors.background
+    color: '#111111',
+    backgroundColor: '#F4F6F7',
   },
   groupDivider: {
     flexDirection: 'row',
@@ -388,9 +448,41 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     marginHorizontal: 12,
     fontSize: 12,
     fontWeight: '700',
-    color: colors.muted
+    color: '#8A939B',
   },
-  error: { color: colors.error, marginBottom: 8 },
-  btn: { backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
-  btnText: { color: colors.white, fontWeight: '600' }
+  error: { color: colors.error, marginBottom: 8, textAlign: 'center' },
+  btnWrap: {
+    marginTop: 8,
+    marginBottom: 8,
+    paddingTop: 4,
+  },
+  btn: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 56,
+    borderWidth: 2,
+    borderColor: colors.primaryDark + '55',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.22,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 10,
+      },
+      default: {},
+    }),
+  },
+  btnText: {
+    color: colors.primaryDark,
+    fontWeight: '800',
+    fontSize: 18,
+    letterSpacing: 0.2,
+  },
 });

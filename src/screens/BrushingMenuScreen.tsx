@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,11 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
 import { NotificationService } from '../services/NotificationService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 import { useColors } from '../context/ThemeContext';
 import { type Colors, ui } from '../utils/colors';
 import { createUiStyles } from '../utils/uiStyles';
@@ -38,6 +41,7 @@ export const BrushingMenuScreen: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const nav = useNavigation();
+  const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState<BrushSession[]>([]);
   const [weekProgress, setWeekProgress] = useState<number[]>([0, 0, 0, 0, 0, 0, 0]);
   const [refreshing, setRefreshing] = useState(false);
@@ -163,15 +167,16 @@ export const BrushingMenuScreen: React.FC = () => {
   const weekdayLabels = t('weekdaysShort').split(',').slice(0, 7);
 
   return (
-    <View style={[styles.container, uiStyles.screen, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+    <BrandedScreenBackground>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[colors.white]}
+            tintColor={colors.white}
           />
         }
       >
@@ -183,20 +188,23 @@ export const BrushingMenuScreen: React.FC = () => {
           accessibilityRole="button"
           accessibilityLabel={`${t('brushingGraphTitle')}. ${t('brushingGraphTapHint')}`}
         >
-          <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard]}>
+          <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard, styles.premiumCard, styles.graphCard]}>
+            <View style={styles.graphAccent} />
             <View style={styles.graphHeaderRow}>
               <View style={styles.graphHeaderText}>
                 <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('brushingGraphTitle')}</Text>
                 <Text style={styles.cardSubtitle}>{t('brushingGraphSubtitle')}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={22} color={colors.muted} />
+              <View style={styles.chevronWrap}>
+                <Ionicons name="chevron-forward" size={18} color={colors.primaryDark} />
+              </View>
             </View>
             <Text style={styles.tapHint}>{t('brushingGraphTapHint')}</Text>
             <View style={styles.chartWrap}>
               {weekProgress.map((v, i) => (
                 <View key={`${weekdayLabels[i] ?? i}`} style={styles.barCol}>
                   <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { height: v === 0 ? '0%' : `${Math.max(8, v)}%` }]} />
+                    <View style={[styles.barFill, { height: v === 0 ? '0%' : `${Math.max(10, v)}%` }]} />
                   </View>
                   <Text style={styles.barLabel}>{weekdayLabels[i] ?? ''}</Text>
                 </View>
@@ -205,10 +213,12 @@ export const BrushingMenuScreen: React.FC = () => {
           </View>
         </TouchableOpacity>
 
-        <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard]}>
+        <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard, styles.premiumCard]}>
           <View style={styles.rowBetween}>
             <Text style={[uiStyles.sectionTitle, styles.cardTitle]}>{t('sessionListTitle')}</Text>
-            <Text style={styles.pointHint}>+{sessionPoints} {t('pointsLabel')}</Text>
+            <View style={styles.pointHintPill}>
+              <Text style={styles.pointHint}>+{sessionPoints} {t('pointsLabel')}</Text>
+            </View>
           </View>
           {plannedTypes.map((sessionType) => {
             const session = sessions.find((s) => s.sessionType === sessionType);
@@ -262,10 +272,10 @@ export const BrushingMenuScreen: React.FC = () => {
           })}
         </View>
 
-        <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard]}>
+        <View style={[uiStyles.card, styles.card, isIosUi && ios.iosGroupedCard, styles.premiumCard, styles.countdownCard]}>
           <View style={styles.countdownHeader}>
             <View style={styles.countdownIconWrap}>
-              <Ionicons name="refresh-circle" size={20} color={colors.primary} />
+              <Ionicons name="refresh-circle" size={22} color={colors.primaryDark} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.countdownTitle}>{t('toothbrushCountdownTitle')}</Text>
@@ -313,7 +323,7 @@ export const BrushingMenuScreen: React.FC = () => {
                 onPress={handleMarkToothbrushReplaced}
                 activeOpacity={0.88}
               >
-                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                <Ionicons name="checkmark-circle" size={20} color={colors.white} />
                 <Text style={styles.countdownResetBtnText}>{t('toothbrushMarkReplaced')}</Text>
               </TouchableOpacity>
             </>
@@ -329,72 +339,137 @@ export const BrushingMenuScreen: React.FC = () => {
         onClose={() => setFeedbackModal(null)}
       />
     </View>
+    </BrandedScreenBackground>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: ui.screenPadding, paddingBottom: ui.spacingXl },
   card: {
+    marginBottom: 14,
+  },
+  premiumCard: {
+    borderRadius: ui.radiusLg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+      },
+      android: { elevation: 5 },
+      default: {},
+    }),
+  },
+  graphCard: {
+    overflow: 'hidden',
+  },
+  graphAccent: {
+    height: 3,
+    marginHorizontal: -ui.cardPadding,
+    marginTop: -ui.cardPadding,
     marginBottom: 12,
+    backgroundColor: colors.primary,
+    opacity: 0.95,
   },
   cardTitle: { marginBottom: 0 },
-  cardSubtitle: { marginTop: 2, fontSize: 11, color: colors.muted },
+  cardSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    color: colors.muted,
+    lineHeight: 16,
+    letterSpacing: -0.1,
+  },
   graphHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 8,
-  },
-  graphHeaderText: { flex: 1, minWidth: 0 },
-  tapHint: { marginTop: 6, fontSize: 11, color: colors.primary, fontWeight: '600' },
-  countdownHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
   },
-  countdownIconWrap: {
+  graphHeaderText: { flex: 1, minWidth: 0 },
+  chevronWrap: {
     width: 34,
     height: 34,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.successLight,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.primary + '2A',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary + '28',
   },
-  countdownTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.text,
+  tapHint: {
+    marginTop: 8,
+    fontSize: 11,
+    color: colors.primaryDark,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  countdownSubtitle: {
-    marginTop: 2,
-    fontSize: 12,
-    color: colors.muted,
+  countdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  countdownBadge: {
-    minWidth: 36,
-    height: 28,
-    borderRadius: 14,
-    paddingHorizontal: 8,
+  countdownIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary + '18',
-    borderWidth: ui.borderWidth,
-    borderColor: colors.primary + '40',
+    backgroundColor: colors.successLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary + '30',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+      },
+      default: {},
+    }),
+  },
+  countdownCard: {
+    marginBottom: 4,
+  },
+  countdownTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  countdownSubtitle: {
+    marginTop: 3,
+    fontSize: 12,
+    color: colors.muted,
+    lineHeight: 16,
+  },
+  countdownBadge: {
+    minWidth: 38,
+    height: 32,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.successLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary + '45',
   },
   countdownBadgeText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
-    color: colors.primary,
+    color: colors.primaryDark,
   },
   countdownProgressBg: {
-    height: 8,
+    height: 9,
     borderRadius: 999,
     backgroundColor: colors.background,
-    marginTop: 10,
+    marginTop: 12,
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.cardBorder,
   },
   countdownProgressFill: {
     height: '100%',
@@ -402,80 +477,110 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     backgroundColor: colors.primary,
   },
   countdownHint: {
-    marginTop: 10,
-    fontSize: 11,
+    marginTop: 12,
+    fontSize: 12,
     color: colors.muted,
-    lineHeight: 15,
+    lineHeight: 17,
   },
   countdownResetBtn: {
-    marginTop: 8,
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     alignSelf: 'stretch',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: ui.radiusMd,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.primary + '40',
-    backgroundColor: colors.primary + '10',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primaryDark,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+      },
+      android: { elevation: 4 },
+      default: {},
+    }),
   },
   countdownResetBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.white,
+    letterSpacing: 0.2,
   },
   chartWrap: {
-    marginTop: 12,
+    marginTop: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
+    paddingHorizontal: 2,
   },
-  barCol: { alignItems: 'center', width: 34 },
+  barCol: { alignItems: 'center', width: 36 },
   barTrack: {
-    width: 18,
-    height: 68,
-    borderRadius: 9,
-    backgroundColor: colors.background,
+    width: 20,
+    height: 76,
+    borderRadius: 10,
+    backgroundColor: colors.cardBorder,
     justifyContent: 'flex-end',
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
   },
   barFill: {
     width: '100%',
     backgroundColor: colors.primary,
-    borderRadius: 9,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
   },
-  barLabel: { marginTop: 6, fontSize: 11, color: colors.muted, fontWeight: '600' },
+  barLabel: {
+    marginTop: 8,
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  pointHint: { color: colors.primary, fontSize: 12, fontWeight: '700' },
+  pointHintPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.primary + '1A',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary + '38',
+  },
+  pointHint: { color: colors.primaryDark, fontSize: 12, fontWeight: '800' },
   sessionRow: {
-    marginTop: 8,
-    borderWidth: ui.borderWidth,
+    marginTop: 12,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.cardBorder,
-    borderRadius: ui.radiusMd,
-    padding: 8,
-    gap: 6,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 8,
+    backgroundColor: colors.background,
   },
   sessionHead: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  sessionTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  sessionTitle: { fontSize: 15, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
   sessionTime: { fontSize: 12, color: colors.muted, fontWeight: '700' },
-  statusText: { fontSize: 12, color: colors.muted, fontWeight: '600' },
+  statusText: { fontSize: 12, color: colors.textSecondary, fontWeight: '700' },
   startBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    minHeight: 32,
-    paddingHorizontal: 8,
+    minHeight: 36,
+    paddingHorizontal: 12,
     paddingVertical: 0,
+    borderRadius: 999,
   },
   startBtnSecondary: {
     borderColor: colors.primary,

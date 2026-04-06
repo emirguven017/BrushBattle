@@ -6,15 +6,18 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { BrushingService } from '../services/BrushingService';
 import { type Colors, ui } from '../utils/colors';
 import { createIosStyles, isIosUi } from '../utils/iosUi';
 import { useColors } from '../context/ThemeContext';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 import { dateKey, todayKey } from '../utils/date';
 import {
   computeBrushingInsights,
@@ -53,6 +56,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
   const colors = useColors();
   const ios = useMemo(() => createIosStyles(colors), [colors]);
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const [rows, setRows] = useState<DayRow[]>([]);
@@ -168,58 +172,69 @@ export const BrushingAnalyticsScreen: React.FC = () => {
 
   if (!user) {
     return (
-      <View style={[styles.center, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+      <BrandedScreenBackground>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
         <Text style={styles.muted}>{t('somethingWrong')}</Text>
       </View>
+      </BrandedScreenBackground>
     );
   }
 
   if (loading) {
     return (
-      <View style={[styles.center, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <BrandedScreenBackground>
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={colors.white} />
       </View>
+      </BrandedScreenBackground>
     );
   }
 
   return (
+    <BrandedScreenBackground>
     <ScrollView
-      style={[styles.scroll, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
-      contentContainerStyle={[styles.content, isIosUi && { paddingHorizontal: 16 }]}
+      style={styles.scroll}
+      contentContainerStyle={[
+        styles.content,
+        isIosUi && { paddingHorizontal: 16 },
+        { paddingTop: insets.top + ui.screenPadding },
+      ]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          colors={[colors.primary]}
-          tintColor={colors.primary}
+          colors={[colors.white]}
+          tintColor={colors.white}
         />
       }
     >
       <Text style={styles.screenTitle}>{t('brushingAnalyticsTitle')}</Text>
-      <Text style={styles.screenSubtitle}>{t('brushingAnalyticsSubtitle')}</Text>
 
-      <View style={[styles.summaryRow, isIosUi && ios.iosGroupedCard]}>
-        <View style={styles.summaryCell}>
-          <View style={styles.summaryIconWrap}>
-            <Ionicons name="analytics" size={22} color={colors.primary} />
+      <View style={[styles.summaryRow, styles.premiumCard, styles.summaryCardShell, isIosUi && ios.iosGroupedCard]}>
+        <View style={styles.summaryAccent} />
+        <View style={styles.summaryRowInner}>
+          <View style={styles.summaryCell}>
+            <View style={styles.summaryIconWrap}>
+              <Ionicons name="analytics" size={22} color={colors.primaryDark} />
+            </View>
+            <Text style={styles.summaryValue}>{avgPercent}%</Text>
+            <Text style={styles.summaryLabel}>{t('brushingAnalyticsAvgCompletion')}</Text>
           </View>
-          <Text style={styles.summaryValue}>{avgPercent}%</Text>
-          <Text style={styles.summaryLabel}>{t('brushingAnalyticsAvgCompletion')}</Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryCell}>
-          <View style={styles.summaryIconWrap}>
-            <Ionicons name="checkmark-done" size={22} color={colors.primary} />
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryCell}>
+            <View style={styles.summaryIconWrap}>
+              <Ionicons name="checkmark-done" size={22} color={colors.primaryDark} />
+            </View>
+            <Text style={styles.summaryValue}>{totalCompleted}</Text>
+            <Text style={styles.summaryLabel}>{t('brushingAnalyticsTotalSessions')}</Text>
           </View>
-          <Text style={styles.summaryValue}>{totalCompleted}</Text>
-          <Text style={styles.summaryLabel}>{t('brushingAnalyticsTotalSessions')}</Text>
         </View>
       </View>
 
       {insights.typical.length > 0 || insights.late.length > 0 ? (
         <View style={styles.insightsWrap}>
           {insights.typical.length > 0 ? (
-            <View style={[styles.insightCard, isIosUi && ios.iosGroupedCard]}>
+            <View style={[styles.insightCard, styles.premiumCard, isIosUi && ios.iosGroupedCard]}>
               <View style={styles.insightCardHead}>
                 <View style={styles.insightIconCircle}>
                   <Ionicons name="time" size={20} color={colors.primary} />
@@ -247,7 +262,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
           ) : null}
 
           {insights.late.map((sug) => (
-            <View key={sug.type} style={[styles.insightCard, styles.insightCardAccent, isIosUi && ios.iosGroupedCard]}>
+            <View key={sug.type} style={[styles.insightCard, styles.premiumCard, styles.insightCardAccent, isIosUi && ios.iosGroupedCard]}>
               <View style={styles.insightCardHead}>
                 <View style={[styles.insightIconCircle, styles.insightIconWarm]}>
                   <Ionicons name="bulb" size={20} color="#C27C1A" />
@@ -273,13 +288,7 @@ export const BrushingAnalyticsScreen: React.FC = () => {
       ) : null}
 
       <View style={styles.sectionHeader}>
-        <View style={styles.sectionTitleRow}>
-          <View style={styles.sectionIconBg}>
-            <Ionicons name="calendar" size={18} color={colors.primary} />
-          </View>
-          <Text style={styles.sectionTitle}>{t('brushingAnalyticsByDay')}</Text>
-        </View>
-        <Text style={styles.sectionHint}>{t('brushingAnalyticsByDayHint')}</Text>
+        <Text style={styles.sectionTitle}>{t('brushingAnalyticsByDay')}</Text>
       </View>
 
       {rows.map((row) => {
@@ -298,8 +307,8 @@ export const BrushingAnalyticsScreen: React.FC = () => {
             key={row.dateKey}
             style={[
               styles.dayCard,
+              styles.premiumCard,
               isIosUi && ios.iosGroupedCard,
-              row.isToday && styles.dayCardToday,
               perfect && styles.dayCardPerfect,
             ]}
           >
@@ -419,44 +428,75 @@ export const BrushingAnalyticsScreen: React.FC = () => {
         );
       })}
     </ScrollView>
+    </BrandedScreenBackground>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.background },
+  scroll: { flex: 1, backgroundColor: 'transparent' },
   content: { padding: ui.screenPadding, paddingBottom: 40 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
-  muted: { color: colors.muted, fontSize: 15 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' },
+  muted: { color: 'rgba(255,255,255,0.85)', fontSize: 15 },
+  premiumCard: {
+    borderRadius: ui.radiusLg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+      },
+      android: { elevation: 5 },
+      default: {},
+    }),
+  },
   screenTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  screenSubtitle: {
-    fontSize: 14,
-    color: colors.muted,
-    marginBottom: 18,
-    lineHeight: 20,
+    color: colors.white,
+    marginBottom: 20,
+    letterSpacing: -0.3,
   },
   summaryRow: {
-    flexDirection: 'row',
     backgroundColor: colors.card,
-    borderRadius: ui.radiusLg,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.cardBorder,
-    paddingVertical: 16,
     marginBottom: 22,
+  },
+  summaryCardShell: {
+    overflow: 'hidden',
+  },
+  summaryAccent: {
+    height: 3,
+    width: '100%',
+    backgroundColor: colors.primary,
+    opacity: 0.95,
+  },
+  summaryRowInner: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    paddingVertical: 18,
   },
   summaryCell: { flex: 1, alignItems: 'center', paddingHorizontal: 8 },
   summaryIconWrap: {
-    marginBottom: 6,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    marginBottom: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.successLight,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary + '28',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 5,
+      },
+      default: {},
+    }),
   },
   summaryDivider: {
     width: StyleSheet.hairlineWidth,
@@ -464,28 +504,28 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     marginVertical: 4,
   },
   summaryValue: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
-    color: colors.primary,
+    color: colors.primaryDark,
+    letterSpacing: -0.5,
   },
   summaryLabel: {
     fontSize: 12,
     color: colors.muted,
     textAlign: 'center',
-    marginTop: 4,
-    fontWeight: '600',
+    marginTop: 6,
+    fontWeight: '700',
+    lineHeight: 16,
   },
-  insightsWrap: { gap: 12, marginBottom: 20 },
+  insightsWrap: { gap: 14, marginBottom: 22 },
   insightCard: {
     backgroundColor: colors.card,
-    borderRadius: ui.radiusLg,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.cardBorder,
-    padding: 14,
+    padding: 16,
   },
   insightCardAccent: {
     borderColor: colors.warning + '55',
     backgroundColor: colors.warningLight + 'AA',
+    borderWidth: StyleSheet.hairlineWidth,
   },
   insightCardHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
   insightIconCircle: {
@@ -531,50 +571,22 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     marginTop: 10,
   },
   settingsHint: { fontSize: 12, color: colors.muted, fontWeight: '600', flex: 1 },
-  sectionHeader: { marginBottom: 12 },
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sectionIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.successLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  sectionHeader: { marginBottom: 14 },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.white,
     letterSpacing: -0.3,
-  },
-  sectionHint: {
-    marginTop: 6,
-    marginLeft: 46,
-    fontSize: 13,
-    color: colors.muted,
-    lineHeight: 18,
   },
   dayCard: {
     backgroundColor: colors.card,
-    borderRadius: ui.radiusLg,
-    borderWidth: ui.borderWidth,
-    borderColor: colors.cardBorder,
-    padding: 14,
+    padding: 16,
     marginBottom: 14,
     overflow: 'hidden',
   },
-  dayCardToday: {
-    borderColor: colors.primary + '88',
-    borderWidth: 1.5,
-    backgroundColor: colors.card,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 3,
-  },
   dayCardPerfect: {
     borderColor: colors.warning + '66',
+    borderWidth: 1.5,
   },
   dayTopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   dotsColumn: { justifyContent: 'center', gap: 6, paddingTop: 4 },
@@ -598,17 +610,19 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   dayLabel: { fontSize: 16, fontWeight: '800', color: colors.text },
   dayLabelToday: { color: colors.primaryDark },
   todayPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: colors.primary + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.primaryDark,
   },
   todayPillText: {
     fontSize: 11,
     fontWeight: '800',
     color: colors.primaryDark,
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   perfectPill: {
     flexDirection: 'row',
@@ -626,28 +640,41 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   barTrack: {
     height: 10,
-    borderRadius: 5,
+    borderRadius: 999,
     backgroundColor: colors.background,
     overflow: 'hidden',
-    marginBottom: 6,
+    marginBottom: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.cardBorder,
   },
   barFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 999,
   },
   dayMeta: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
-    color: colors.muted,
+    color: colors.textSecondary,
+    letterSpacing: -0.1,
   },
   percentRing: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      },
+      android: { elevation: 2 },
+      default: {},
+    }),
   },
   percentRingInner: {
     fontSize: 16,
@@ -668,9 +695,9 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     flexGrow: 1,
     minWidth: 100,

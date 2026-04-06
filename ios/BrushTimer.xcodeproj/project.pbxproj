@@ -13,6 +13,8 @@
 		83806B89981A3471E84FE308 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C21B75E46D7A649D12A0D56C /* PrivacyInfo.xcprivacy */; };
 		94AA2F1DCDD021FB2DF0BD6B /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9D72C7D0436D5906503CF53 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		C1A5A1001000000000000001 /* DynamicIslandModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A5A1001000000000000011 /* DynamicIslandModule.swift */; };
+		C1A5A1001000000000000002 /* DynamicIslandModuleBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = C1A5A1001000000000000012 /* DynamicIslandModuleBridge.m */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -26,6 +28,8 @@
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = BrushTimer/SplashScreen.storyboard; sourceTree = "<group>"; };
 		B6A0672A830217FB962186EA /* Pods-BrushTimer.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BrushTimer.release.xcconfig"; path = "Target Support Files/Pods-BrushTimer/Pods-BrushTimer.release.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		C1A5A1001000000000000011 /* DynamicIslandModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DynamicIslandModule.swift; path = BrushTimer/DynamicIslandModule.swift; sourceTree = "<group>"; };
+		C1A5A1001000000000000012 /* DynamicIslandModuleBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = DynamicIslandModuleBridge.m; path = BrushTimer/DynamicIslandModuleBridge.m; sourceTree = "<group>"; };
 		C21B75E46D7A649D12A0D56C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = BrushTimer/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = BrushTimer/AppDelegate.swift; sourceTree = "<group>"; };
@@ -49,6 +53,8 @@
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* BrushTimer-Bridging-Header.h */,
+				C1A5A1001000000000000011 /* DynamicIslandModule.swift */,
+				C1A5A1001000000000000012 /* DynamicIslandModuleBridge.m */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -350,6 +356,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
+				C1A5A1001000000000000001 /* DynamicIslandModule.swift in Sources */,
+				C1A5A1001000000000000002 /* DynamicIslandModuleBridge.m in Sources */,
 				94AA2F1DCDD021FB2DF0BD6B /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -366,7 +374,7 @@
 				CODE_SIGN_ENTITLEMENTS = BrushTimer/BrushTimer.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 336Z3W5XDB;
 				ENABLE_BITCODE = NO;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -409,7 +417,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = BrushTimer/BrushTimer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = 336Z3W5XDB;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = BrushTimer/Info.plist;

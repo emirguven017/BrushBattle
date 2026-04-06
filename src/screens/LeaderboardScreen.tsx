@@ -5,24 +5,24 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  TouchableOpacity
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { type Colors, headerTitle, ui } from '../utils/colors';
 import { createUiStyles } from '../utils/uiStyles';
-import { createIosStyles, isIosUi } from '../utils/iosUi';
+import { isIosUi } from '../utils/iosUi';
 import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { LeaderboardService } from '../services/LeaderboardService';
 import { LeaderboardItem, RewardCard } from '../components';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 import type { LeaderboardRanking } from '../types';
 
 export const LeaderboardScreen: React.FC = () => {
   const colors = useColors();
   const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
-  const ios = useMemo(() => createIosStyles(colors), [colors]);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const insets = useSafeAreaInsets();
@@ -52,7 +52,8 @@ export const LeaderboardScreen: React.FC = () => {
 
   if (!user?.groupId) {
     return (
-      <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+      <BrandedScreenBackground>
+      <View style={styles.wrapper}>
         {!isIosUi ? (
           <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
             <View style={styles.titleBar}>
@@ -60,15 +61,17 @@ export const LeaderboardScreen: React.FC = () => {
             </View>
           </View>
         ) : null}
-        <View style={[styles.empty, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+        <View style={styles.empty}>
           <Text style={styles.emptyText}>{t('joinGroupFirst')}</Text>
         </View>
       </View>
+      </BrandedScreenBackground>
     );
   }
 
   return (
-    <View style={[styles.wrapper, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+    <BrandedScreenBackground>
+    <View style={styles.wrapper}>
       {!isIosUi ? (
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
@@ -76,7 +79,7 @@ export const LeaderboardScreen: React.FC = () => {
           </View>
         </View>
       ) : null}
-      <View style={[styles.content, uiStyles.content, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+      <View style={[styles.content, uiStyles.content, isIosUi && styles.contentIos]}>
       <View style={styles.rewardWrap}>
         <View style={styles.rewardCard}>
           <RewardCard rank={1} />
@@ -88,15 +91,7 @@ export const LeaderboardScreen: React.FC = () => {
           <RewardCard rank={3} />
         </View>
       </View>
-      <Text
-        style={[
-          uiStyles.sectionTitle,
-          styles.rankingTitle,
-          isIosUi && ios.iosSectionLabelText,
-        ]}
-      >
-        {t('ranking')}
-      </Text>
+      <Text style={styles.rankingTitle}>{t('ranking')}</Text>
       <FlatList
         data={rankings}
         keyExtractor={r => r.userId}
@@ -104,8 +99,8 @@ export const LeaderboardScreen: React.FC = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[colors.white]}
+            tintColor={colors.white}
           />
         }
         contentContainerStyle={[styles.list, rankings.length === 0 && styles.listEmpty]}
@@ -140,13 +135,14 @@ export const LeaderboardScreen: React.FC = () => {
       />
       </View>
     </View>
+    </BrandedScreenBackground>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: colors.background },
+  wrapper: { flex: 1, backgroundColor: 'transparent' },
   greenHeader: { backgroundColor: colors.primary },
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   titleBar: {
     backgroundColor: colors.primary,
     paddingVertical: 16,
@@ -157,20 +153,28 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     ...headerTitle
   },
   content: { flex: 1 },
+  contentIos: {
+    paddingTop: 4,
+  },
   rewardWrap: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 4,
-    gap: 6,
+    paddingHorizontal: ui.screenPadding,
+    paddingTop: 10,
+    paddingBottom: 8,
+    gap: 8,
   },
   rewardCard: { flex: 1, minWidth: 0 },
   rankingTitle: {
     paddingHorizontal: ui.screenPadding,
-    marginTop: 6,
-    marginBottom: 6,
+    marginTop: 10,
+    marginBottom: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.92)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.55,
   },
-  list: { paddingHorizontal: ui.screenPadding, paddingBottom: 32 },
+  list: { paddingHorizontal: ui.screenPadding, paddingBottom: 40, paddingTop: 4 },
   listEmpty: { flexGrow: 1, minHeight: 120 },
   emptyRanking: {
     paddingVertical: 24,
@@ -179,24 +183,24 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   emptyRankingText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.muted,
+    color: 'rgba(255,255,255,0.9)',
     marginBottom: 6,
   },
   emptyRankingHint: {
     fontSize: 13,
-    color: colors.muted,
+    color: 'rgba(255,255,255,0.75)',
     textAlign: 'center',
   },
   empty: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center'
   },
-  emptyText: { fontSize: 16, color: colors.muted },
+  emptyText: { fontSize: 16, color: 'rgba(255,255,255,0.9)' },
   rowWrap: {
     position: 'relative',
-    marginBottom: 6
+    marginBottom: 6,
   },
   targetBtn: {
     position: 'absolute',
@@ -214,13 +218,13 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     justifyContent: 'center',
     shadowOpacity: 0,
     shadowRadius: 0,
-    elevation: 0
+    elevation: 0,
   },
   targetBtnText: {
     fontSize: 11,
     fontWeight: '800',
     color: colors.accent,
     textAlign: 'center',
-    lineHeight: 12
-  }
+    lineHeight: 12,
+  },
 });

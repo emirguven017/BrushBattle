@@ -14,11 +14,13 @@ import { type Colors, ui } from '../utils/colors';
 import { createUiStyles } from '../utils/uiStyles';
 import { createIosStyles, isIosUi } from '../utils/iosUi';
 import { useColors } from '../context/ThemeContext';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useTabJump } from '../context/TabJumpContext';
 import { BrushingService } from '../services/BrushingService';
 import { NotificationService } from '../services/NotificationService';
+import { DynamicIslandService } from '../services/DynamicIslandService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
 import { InventoryService } from '../services/inventoryService';
 import { LeaderboardService } from '../services/LeaderboardService';
@@ -60,6 +62,49 @@ export const HomeScreen: React.FC = () => {
     return ['morning', 'midday', 'evening'];
   }, [user?.dailySessionCount]);
 
+  React.useEffect(() => {
+    if (!user) return;
+
+    const getDueSessionInfo = () => {
+      for (const sessionType of plannedSessionTypes) {
+        const session = sessions.find((s) => s.sessionType === sessionType);
+        if (session?.status === 'completed') continue;
+        const scheduledTime = session?.scheduledTime ?? (
+          sessionType === 'morning'
+            ? (user.morningTime ?? '08:00')
+            : sessionType === 'midday'
+              ? (user.middayTime ?? '14:00')
+              : (user.eveningTime ?? '21:00')
+        );
+        const mins = minutesSinceScheduled(scheduledTime);
+        if (mins >= 0 && mins <= 60) {
+          const remaining = Math.max(1, 60 - mins);
+          const title =
+            sessionType === 'morning'
+              ? t('morningTask')
+              : sessionType === 'midday'
+                ? t('middayTask')
+                : t('eveningTask');
+          return { title, remaining };
+        }
+      }
+      return null;
+    };
+
+    const syncDynamicIsland = () => {
+      const due = getDueSessionInfo();
+      if (due) {
+        DynamicIslandService.startBrushingSession(t('brushingTime'), due.title, due.remaining).catch(() => {});
+        return;
+      }
+      DynamicIslandService.endBrushingSession().catch(() => {});
+    };
+
+    syncDynamicIsland();
+    const intervalId = setInterval(syncDynamicIsland, 30000);
+    return () => clearInterval(intervalId);
+  }, [sessions, plannedSessionTypes, user, t]);
+
   const load = async () => {
     if (!user) return;
     const [list, balance, weekly] = await Promise.all([
@@ -88,26 +133,40 @@ export const HomeScreen: React.FC = () => {
   );
 
   useLayoutEffect(() => {
-    (nav as {
-      setOptions: (opts: {
-        headerRight: () => React.ReactNode;
-        headerRightContainerStyle?: object;
-      }) => void;
-    }).setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          style={styles.headerBrBtn}
-          activeOpacity={0.85}
-          onPress={() => tabJump?.jumpToTab('BRMarket')}
-        >
-          <View style={styles.headerBrRow}>
-            <Ionicons name="diamond" size={13} color={colors.text} />
-            <Text style={styles.headerBrText}>{brScore}</Text>
-          </View>
-        </TouchableOpacity>
-      )
-    });
-  }, [nav, brScore, tabJump, styles, colors.text]);
+    const gemButton = (
+      <TouchableOpacity
+        style={styles.headerBrBtn}
+        activeOpacity={0.85}
+        onPress={() => tabJump?.jumpToTab('BRMarket')}
+      >
+        <View style={styles.headerBrRow}>
+          <Ionicons name="diamond" size={13} color={colors.white} />
+          <Text style={styles.headerBrText}>{brScore}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+
+    if (Platform.OS === 'ios') {
+      (nav as { setOptions: (opts: Record<string, unknown>) => void }).setOptions({
+        headerRight: undefined,
+        unstable_headerRightItems: () => [
+          {
+            type: 'custom' as const,
+            hidesSharedBackground: true,
+            element: gemButton,
+          },
+        ],
+      });
+    } else {
+      (nav as { setOptions: (opts: Record<string, unknown>) => void }).setOptions({
+        unstable_headerRightItems: undefined,
+        headerRight: () => gemButton,
+        headerRightContainerStyle: {
+          backgroundColor: 'transparent',
+        },
+      });
+    }
+  }, [nav, brScore, tabJump, styles, colors.white]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -252,7 +311,8 @@ export const HomeScreen: React.FC = () => {
           : t('statusPending');
 
   return (
-    <View style={[styles.wrapper, !isIosUi && uiStyles.screen, isIosUi && styles.wrapperIOS]}>
+    <BrandedScreenBackground>
+    <View style={[styles.wrapper, isIosUi && styles.wrapperIOS]}>
     <ScrollView
       style={[styles.container, isIosUi && styles.containerIOS]}
       contentContainerStyle={[styles.content, isIosUi && styles.contentIOS]}
@@ -278,7 +338,7 @@ export const HomeScreen: React.FC = () => {
             </View>
           </View>
 
-          <Text style={[styles.iosSectionHeader, ios.iosSectionLabelText]}>{t('todayTasks')}</Text>
+          <Text style={[styles.iosSectionHeader, styles.iosSectionLabelOnBrand]}>{t('todayTasks')}</Text>
 
           <View style={[styles.iosInsetGroup, ios.iosGroupedCard]}>
             {plannedSessionTypes.map((sessionType, index) => {
@@ -457,14 +517,15 @@ export const HomeScreen: React.FC = () => {
       onClose={() => setFeedbackModal(null)}
     />
     </View>
+    </BrandedScreenBackground>
   );
 };
 
 const createStyles = (colors: Colors) => StyleSheet.create({
   wrapper: { flex: 1 },
-  wrapperIOS: { backgroundColor: colors.iosGroupedBg },
-  container: { flex: 1, backgroundColor: colors.background },
-  containerIOS: { backgroundColor: colors.iosGroupedBg },
+  wrapperIOS: { backgroundColor: 'transparent' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  containerIOS: { backgroundColor: 'transparent' },
   content: { padding: ui.screenPadding, paddingBottom: 40, flexGrow: 1 },
   contentIOS: {
     paddingHorizontal: 16,
@@ -479,7 +540,7 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   iosGreetingCaps: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.muted,
+    color: 'rgba(255,255,255,0.75)',
     letterSpacing: 0.3,
     textTransform: 'uppercase',
     marginBottom: 4,
@@ -487,24 +548,37 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   iosUserName: {
     fontSize: 28,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.white,
     letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.18)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   iosTagline: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: 'rgba(255,255,255,0.92)',
     marginTop: 6,
     lineHeight: 20,
+    textShadowColor: 'rgba(0,0,0,0.12)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  iosSectionLabelOnBrand: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: -0.08,
   },
   iosInsetGroup: {
-    overflow: 'hidden',
+    overflow: 'visible',
     marginBottom: 16,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.11,
+        shadowRadius: 14,
       },
       default: {},
     }),
@@ -607,7 +681,7 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   iosMotivation: {
     fontSize: 15,
-    color: colors.textSecondary,
+    color: 'rgba(255,255,255,0.88)',
     lineHeight: 21,
     textAlign: 'center',
     marginBottom: 8,
@@ -636,11 +710,11 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   },
   headerBrBtn: {
     marginRight: 4,
-    paddingHorizontal: 6,
+    paddingHorizontal: 2,
     paddingVertical: 4,
   },
   headerBrText: {
-    color: colors.text,
+    color: colors.white,
     fontSize: 13,
     fontWeight: '800'
   },

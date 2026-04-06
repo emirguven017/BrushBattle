@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, AppState } from 'react-native';
+import { View, StyleSheet, AppState, Platform } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type { ZoneIndex } from '../../utils/brushingZones';
 
@@ -15,6 +15,7 @@ const zoneVideos = [
 ];
 
 export const ToothGuide: React.FC<ToothGuideProps> = ({ activeZone }) => {
+  const useStaticGuide = Platform.OS === 'ios' && !__DEV__;
   const appStateRef = useRef(AppState.currentState);
   const player = useVideoPlayer(zoneVideos[0], (videoPlayer) => {
     videoPlayer.loop = true;
@@ -23,12 +24,14 @@ export const ToothGuide: React.FC<ToothGuideProps> = ({ activeZone }) => {
   });
 
   useEffect(() => {
+    if (useStaticGuide) return;
     player.replace(zoneVideos[activeZone], true);
     player.currentTime = 0;
     player.play();
-  }, [activeZone, player]);
+  }, [activeZone, player, useStaticGuide]);
 
   useEffect(() => {
+    if (useStaticGuide) return;
     const sub = AppState.addEventListener('change', (nextState) => {
       const wasBackground = /inactive|background/.test(appStateRef.current);
       if (wasBackground && nextState === 'active') {
@@ -36,17 +39,22 @@ export const ToothGuide: React.FC<ToothGuideProps> = ({ activeZone }) => {
         player.replace(zoneVideos[activeZone], true);
         player.currentTime = 0;
         player.play();
-      } else if (/inactive|background/.test(nextState)) {
-        player.pause();
       }
       appStateRef.current = nextState;
     });
 
     return () => {
       sub.remove();
-      player.pause();
     };
-  }, [activeZone, player]);
+  }, [activeZone, player, useStaticGuide]);
+
+  if (useStaticGuide) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.staticGuide} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -74,5 +82,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#000',
+  },
+  staticGuide: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#E8F5E9',
   },
 });

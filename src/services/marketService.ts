@@ -225,6 +225,13 @@ export const MarketService = {
     const current = targetData?.points ?? 0;
     const drop = Math.min(10, current);
     await updateDoc(targetRef, { points: increment(-drop) });
+    const updatedPoints = Math.max(0, current - drop);
+    await NotificationInboxService.pushScoreDropHit(
+      targetUserId,
+      userId,
+      drop,
+      updatedPoints
+    ).catch(() => {});
     await this.logTransaction({
       userId,
       targetUserId,

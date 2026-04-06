@@ -18,8 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TimePicker24 } from '../components/TimePicker24';
 import { type Colors, headerTitle, ui } from '../utils/colors';
 import { createUiStyles } from '../utils/uiStyles';
-import { createIosStyles, isIosUi } from '../utils/iosUi';
-import { useColors, useTheme, type ThemeMode } from '../context/ThemeContext';
+import { isIosUi } from '../utils/iosUi';
+import { useColors } from '../context/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useLanguage } from '../context/LanguageContext';
 import { useIntro } from '../context/IntroContext';
@@ -32,15 +32,12 @@ import { GroupService } from '../services/GroupService';
 import { WeeklyRewardService } from '../services/weeklyRewardService';
 import { AppFeedbackModal } from '../components/AppFeedbackModal';
 import { AppConfirmModal } from '../components/AppConfirmModal';
-
-const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'system'];
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 
 export const SettingsScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const colors = useColors();
-  const { themeMode, setThemeMode } = useTheme();
   const uiStyles = useMemo(() => createUiStyles(colors), [colors]);
-  const ios = useMemo(() => createIosStyles(colors), [colors]);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { user, refreshUser, logOut } = useAuth();
@@ -233,11 +230,9 @@ export const SettingsScreen: React.FC = () => {
     }
   };
 
-  const themeLabel = (m: ThemeMode) =>
-    m === 'light' ? t('themeLight') : m === 'dark' ? t('themeDark') : t('themeSystem');
-
   return (
-    <View style={[styles.wrapper, uiStyles.screen, isIosUi && { backgroundColor: colors.iosGroupedBg }]}>
+    <BrandedScreenBackground>
+    <View style={styles.wrapper}>
       {!isIosUi ? (
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
@@ -246,15 +241,15 @@ export const SettingsScreen: React.FC = () => {
         </View>
       ) : null}
     <ScrollView
-      style={[styles.container, isIosUi && { backgroundColor: colors.iosGroupedBg }]}
+      style={styles.container}
       contentContainerStyle={[
         styles.content,
         uiStyles.content,
         isIosUi && { paddingHorizontal: 16 },
       ]}
     >
-      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('language')}</Text>
-      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
+      <Text style={styles.sectionHeader}>{t('language')}</Text>
+      <View style={styles.card}>
         <View style={styles.languageRow}>
           <TouchableOpacity
             style={[styles.langBtn, language === 'tr' && styles.langBtnActive]}
@@ -281,8 +276,8 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
-      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('settings')}</Text>
-      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
+      <Text style={styles.sectionHeader}>{t('settings')}</Text>
+      <View style={styles.card}>
         <Text style={styles.label}>{t('username')}</Text>
         <TextInput
           style={[uiStyles.input]}
@@ -293,7 +288,7 @@ export const SettingsScreen: React.FC = () => {
         />
       </View>
 
-      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
+      <View style={styles.card}>
         <Text style={styles.label}>{t('wwPerDayTitle')}</Text>
         <View style={styles.intervalRow}>
           {[1, 2, 3].map((count) => (
@@ -324,11 +319,15 @@ export const SettingsScreen: React.FC = () => {
             onPress={() => setShowMorningPicker(true)}
             activeOpacity={0.7}
           >
-            <View style={styles.timeButtonContent}>
-              <Ionicons name="sunny-outline" size={20} color={colors.text} />
-              <Text style={styles.timeButtonText}> {morningTime}</Text>
+            <View style={styles.timeButtonRow}>
+              <View style={styles.timeIconWrap}>
+                <Ionicons name="sunny-outline" size={20} color={colors.primaryDark} />
+              </View>
+              <View style={styles.timeButtonTextCol}>
+                <Text style={styles.timeButtonText}>{morningTime}</Text>
+                <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+              </View>
             </View>
-            <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
           </TouchableOpacity>
           {showMorningPicker && (
             <View style={styles.pickerContainer}>
@@ -351,11 +350,15 @@ export const SettingsScreen: React.FC = () => {
               onPress={() => setShowMiddayPicker(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.timeButtonContent}>
-                <Ionicons name="sunny-outline" size={20} color={colors.text} />
-                <Text style={styles.timeButtonText}> {middayTime}</Text>
+              <View style={styles.timeButtonRow}>
+                <View style={styles.timeIconWrap}>
+                  <Ionicons name="partly-sunny-outline" size={20} color={colors.primaryDark} />
+                </View>
+                <View style={styles.timeButtonTextCol}>
+                  <Text style={styles.timeButtonText}>{middayTime}</Text>
+                  <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+                </View>
               </View>
-              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
             </TouchableOpacity>
             {showMiddayPicker && (
               <View style={styles.pickerContainer}>
@@ -379,11 +382,15 @@ export const SettingsScreen: React.FC = () => {
               onPress={() => setShowEveningPicker(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.timeButtonContent}>
-                <Ionicons name="moon-outline" size={20} color={colors.text} />
-                <Text style={styles.timeButtonText}> {eveningTime}</Text>
+              <View style={styles.timeButtonRow}>
+                <View style={styles.timeIconWrap}>
+                  <Ionicons name="moon-outline" size={20} color={colors.primaryDark} />
+                </View>
+                <View style={styles.timeButtonTextCol}>
+                  <Text style={styles.timeButtonText}>{eveningTime}</Text>
+                  <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
+                </View>
               </View>
-              <Text style={styles.timeButtonHint}>{t('tapToChange')}</Text>
             </TouchableOpacity>
             {showEveningPicker && (
               <View style={styles.pickerContainer}>
@@ -400,8 +407,8 @@ export const SettingsScreen: React.FC = () => {
         )}
       </View>
 
-      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('toothbrushReminderTitle')}</Text>
-      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
+      <Text style={styles.sectionHeader}>{t('toothbrushReminderTitle')}</Text>
+      <View style={styles.card}>
         <View style={styles.reminderRow}>
           <Text style={styles.reminderText}>{t('toothbrushReminderEnabled')}</Text>
           <Switch
@@ -450,56 +457,43 @@ export const SettingsScreen: React.FC = () => {
         </View>
       </View>
 
-      <Text style={[styles.sectionHeader, isIosUi && ios.iosSectionLabelText]}>{t('appearance')}</Text>
-      <View style={[styles.card, isIosUi && ios.iosGroupedCard]}>
-        <View style={styles.themeRow}>
-          {THEME_OPTIONS.map((m) => (
-            <TouchableOpacity
-              key={m}
-              style={[styles.themeChip, themeMode === m && styles.themeChipActive]}
-              onPress={() => setThemeMode(m)}
-            >
-              <Ionicons
-                name={m === 'light' ? 'sunny' : m === 'dark' ? 'moon' : 'phone-portrait-outline'}
-                size={16}
-                color={themeMode === m ? colors.primary : colors.muted}
-              />
-              <Text style={[styles.themeChipText, themeMode === m && styles.themeChipTextActive]}>
-                {themeLabel(m)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
       <TouchableOpacity
         style={[
+          styles.footerBtnBase,
           styles.saveBtn,
-          isIosUi && { borderRadius: 12, minHeight: 50 },
           (!hasUnsavedChanges || saving) && styles.saveBtnDisabled,
         ]}
         onPress={() => { handleSave().catch(() => {}); }}
         disabled={!hasUnsavedChanges || saving}
       >
-        <Text style={styles.saveBtnText}>
+        <Text
+          style={[
+            styles.footerBtnLabel,
+            styles.saveBtnText,
+            (!hasUnsavedChanges || saving) && styles.saveBtnTextDisabled,
+          ]}
+        >
           {saving ? t('saving') : t('save')}
         </Text>
       </TouchableOpacity>
 
       {user?.groupId && (
         <TouchableOpacity
-          style={styles.leaveBtn}
+          style={[styles.footerBtnBase, styles.leaveBtn]}
           onPress={handleLeaveGroup}
         >
-          <Text style={styles.leaveBtnText}>{t('leaveGroup')}</Text>
+          <Text style={[styles.footerBtnLabel, styles.leaveBtnText]}>{t('leaveGroup')}</Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.showIntroBtn} onPress={handleShowIntroAgain}>
-        <Text style={styles.showIntroBtnText}>{t('showIntroAgain')}</Text>
+      <TouchableOpacity
+        style={[styles.footerBtnBase, styles.showIntroBtn]}
+        onPress={handleShowIntroAgain}
+      >
+        <Text style={[styles.footerBtnLabel, styles.showIntroBtnText]}>{t('showIntroAgain')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.logoutBtn} onPress={logOut}>
-        <Text style={styles.logoutBtnText}>{t('logout')}</Text>
+      <TouchableOpacity style={[styles.footerBtnBase, styles.logoutBtn]} onPress={logOut}>
+        <Text style={[styles.footerBtnLabel, styles.logoutBtnText]}>{t('logout')}</Text>
       </TouchableOpacity>
     </ScrollView>
     <AppFeedbackModal
@@ -519,6 +513,7 @@ export const SettingsScreen: React.FC = () => {
       onConfirm={() => { confirmLeaveGroup().catch(() => {}); }}
     />
     </View>
+    </BrandedScreenBackground>
   );
 };
 
@@ -526,7 +521,7 @@ const createStyles = (colors: Colors) =>
   StyleSheet.create({
     wrapper: { flex: 1 },
     greenHeader: { backgroundColor: colors.primary },
-    container: { flex: 1, backgroundColor: colors.background },
+    container: { flex: 1, backgroundColor: 'transparent' },
     content: {},
     titleBar: {
       backgroundColor: colors.primary,
@@ -538,51 +533,32 @@ const createStyles = (colors: Colors) =>
     title: { ...headerTitle },
     langBtnContent: { flexDirection: 'row', alignItems: 'center' },
     flag: { borderRadius: 2, overflow: 'hidden' },
-    timeButtonContent: { flexDirection: 'row', alignItems: 'center' },
     sectionHeader: {
-      fontSize: 12,
-      color: colors.muted,
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.92)',
       fontWeight: '700',
-      marginTop: 10,
-      marginBottom: 6,
+      marginTop: 14,
+      marginBottom: 8,
       textTransform: 'uppercase',
-      letterSpacing: 0.3,
+      letterSpacing: 0.45,
     },
     card: {
       backgroundColor: colors.card,
       borderRadius: ui.radiusLg,
       padding: ui.cardPadding,
-      marginBottom: 10,
-      borderWidth: ui.borderWidth,
-      borderColor: colors.cardBorder,
-    },
-    themeRow: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    themeChip: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      borderWidth: ui.borderWidth,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.background,
-      borderRadius: ui.radiusSm,
-      paddingVertical: 10,
-    },
-    themeChipActive: {
-      borderColor: colors.primary,
-      backgroundColor: colors.successLight,
-    },
-    themeChipText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.muted,
-    },
-    themeChipTextActive: {
-      color: colors.primary,
+      marginBottom: 14,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(0,0,0,0.06)',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 5 },
+          shadowOpacity: 0.1,
+          shadowRadius: 14,
+        },
+        android: { elevation: 5 },
+        default: {},
+      }),
     },
     languageRow: {
       flexDirection: 'row',
@@ -591,25 +567,26 @@ const createStyles = (colors: Colors) =>
     },
     langBtn: {
       flex: 1,
-      paddingVertical: 12,
+      paddingVertical: 14,
       paddingHorizontal: 14,
-      borderRadius: ui.radiusMd,
-      borderWidth: ui.borderWidth,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.cardBorder,
       alignItems: 'center',
       backgroundColor: colors.background,
     },
     langBtnActive: {
-      borderColor: colors.primary,
+      borderWidth: 1.5,
+      borderColor: colors.primaryDark,
       backgroundColor: colors.successLight,
     },
     langBtnText: {
-      fontSize: 16,
-      fontWeight: '600',
+      fontSize: 15,
+      fontWeight: '700',
       color: colors.muted,
     },
     langBtnTextActive: {
-      color: colors.primary,
+      color: colors.primaryDark,
     },
     label: {
       fontSize: 13,
@@ -618,21 +595,42 @@ const createStyles = (colors: Colors) =>
       marginBottom: 8,
     },
     timeButton: {
-      borderWidth: ui.borderWidth,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.cardBorder,
-      borderRadius: ui.radiusMd,
-      padding: 14,
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
       backgroundColor: colors.background,
     },
+    timeButtonRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    timeIconWrap: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.successLight,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.primary + '28',
+    },
+    timeButtonTextCol: {
+      flex: 1,
+    },
     timeButtonText: {
-      fontSize: 16,
-      fontWeight: '600',
+      fontSize: 18,
+      fontWeight: '800',
       color: colors.text,
+      letterSpacing: -0.3,
     },
     timeButtonHint: {
       fontSize: 12,
       color: colors.muted,
       marginTop: 4,
+      fontWeight: '600',
     },
     pickerContainer: { marginTop: 8 },
     pickerDoneBtn: {
@@ -666,15 +664,16 @@ const createStyles = (colors: Colors) =>
     },
     intervalChip: {
       flex: 1,
-      borderWidth: ui.borderWidth,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.cardBorder,
       backgroundColor: colors.background,
-      borderRadius: ui.radiusSm,
-      paddingVertical: 10,
+      borderRadius: 999,
+      paddingVertical: 12,
       alignItems: 'center',
     },
     intervalChipActive: {
-      borderColor: colors.primary,
+      borderWidth: 1.5,
+      borderColor: colors.primaryDark,
       backgroundColor: colors.successLight,
     },
     intervalChipDisabled: { opacity: 0.5 },
@@ -683,43 +682,85 @@ const createStyles = (colors: Colors) =>
       fontWeight: '700',
       color: colors.muted,
     },
-    intervalChipTextActive: { color: colors.primary },
-    saveBtn: {
-      minHeight: ui.buttonHeight,
-      borderRadius: ui.radiusMd,
-      backgroundColor: colors.primary,
+    intervalChipTextActive: { color: colors.primaryDark },
+    footerBtnBase: {
+      minHeight: 52,
+      borderRadius: 999,
+      alignSelf: 'stretch',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: ui.spacingLg,
-      marginTop: 12,
-    },
-    saveBtnDisabled: { opacity: 0.5 },
-    saveBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
-    leaveBtn: {
+      paddingVertical: 14,
+      paddingHorizontal: 20,
       marginTop: 10,
-      padding: 14,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.warning,
-      borderRadius: ui.radiusMd,
+      borderWidth: 2,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.12,
+          shadowRadius: 8,
+        },
+        android: { elevation: 3 },
+        default: {},
+      }),
+    },
+    footerBtnLabel: {
+      fontSize: 16,
+      fontWeight: '800',
+      letterSpacing: 0.2,
+    },
+    saveBtn: {
+      marginTop: 16,
+      backgroundColor: colors.primaryDark,
+      borderColor: colors.white,
+    },
+    saveBtnDisabled: {
       backgroundColor: colors.card,
+      borderColor: colors.cardBorder,
+      borderWidth: StyleSheet.hairlineWidth,
+      ...Platform.select({
+        ios: { shadowOpacity: 0.06 },
+        android: { elevation: 1 },
+        default: {},
+      }),
     },
-    leaveBtnText: { color: colors.warning, fontSize: 16, fontWeight: '600' },
+    saveBtnText: {
+      color: colors.white,
+    },
+    saveBtnTextDisabled: {
+      color: colors.muted,
+      fontWeight: '700',
+    },
+    leaveBtn: {
+      backgroundColor: colors.card,
+      borderColor: colors.warning,
+    },
+    leaveBtnText: {
+      color: colors.warning,
+    },
     showIntroBtn: {
-      marginTop: 10,
-      padding: 14,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.primary,
-      borderRadius: ui.radiusMd,
+      backgroundColor: colors.card,
+      borderColor: colors.primaryDark,
     },
-    showIntroBtnText: { color: colors.primary, fontSize: 16, fontWeight: '600' },
+    showIntroBtnText: {
+      color: colors.primaryDark,
+    },
     logoutBtn: {
-      marginTop: 10,
+      marginBottom: 8,
       backgroundColor: colors.error,
-      borderRadius: ui.radiusMd,
-      padding: 14,
-      alignItems: 'center',
+      borderColor: colors.error,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.error,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.35,
+          shadowRadius: 8,
+        },
+        android: { elevation: 4 },
+        default: {},
+      }),
     },
-    logoutBtnText: { color: colors.white, fontSize: 17, fontWeight: '700' },
+    logoutBtnText: {
+      color: colors.white,
+    },
   });

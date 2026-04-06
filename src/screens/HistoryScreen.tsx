@@ -4,7 +4,8 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
+  Platform,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import {
   type DayData,
   type DayStatus
 } from '../components';
+import { BrandedScreenBackground } from '../components/BrandedScreenBackground';
 import { dateKey } from '../utils/date';
 
 export const HistoryScreen: React.FC = () => {
@@ -102,12 +104,8 @@ export const HistoryScreen: React.FC = () => {
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: isIosUi ? colors.iosGroupedBg : colors.primary },
-      ]}
-    >
+    <BrandedScreenBackground>
+    <View style={styles.container}>
       {!isIosUi ? (
         <View style={[styles.greenHeader, { paddingTop: insets.top }]}>
           <View style={styles.titleBar}>
@@ -116,7 +114,7 @@ export const HistoryScreen: React.FC = () => {
         </View>
       ) : null}
 
-      <View style={{ flex: 1, backgroundColor: isIosUi ? colors.iosGroupedBg : colors.background }}>
+      <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <CalendarView
         days={days}
         currentMonth={currentMonth}
@@ -124,26 +122,31 @@ export const HistoryScreen: React.FC = () => {
         onDayPress={handleDayPress}
       />
 
-      <View style={styles.legend}>
-        <View style={styles.legendRow}>
-          <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-          <Text style={styles.legendText}>{t('legendBothDone')}</Text>
-        </View>
-        <View style={styles.legendRow}>
-          <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
-          <Text style={styles.legendText}>{t('legendOneDone')}</Text>
-        </View>
-        <View style={styles.legendRow}>
-          <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
-          <Text style={styles.legendText}>{t('legendMissed')}</Text>
-        </View>
-        <View style={styles.legendRow}>
-          <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
-          <Text style={styles.legendText}>{t('legendToothbrushLastChange')}</Text>
-        </View>
-        <View style={styles.legendRow}>
-          <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
-          <Text style={styles.legendText}>{t('legendToothbrushNextDue')}</Text>
+      <View style={styles.legendCard}>
+        <View style={styles.legendAccent} />
+        <View style={styles.legendInner}>
+          <View style={styles.legendGrid}>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+              <Text style={styles.legendText}>{t('legendBothDone')}</Text>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
+              <Text style={styles.legendText}>{t('legendOneDone')}</Text>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
+              <Text style={styles.legendText}>{t('legendMissed')}</Text>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
+              <Text style={styles.legendText}>{t('legendToothbrushLastChange')}</Text>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
+              <Text style={styles.legendText}>{t('legendToothbrushNextDue')}</Text>
+            </View>
+          </View>
         </View>
       </View>
       </View>
@@ -261,6 +264,7 @@ export const HistoryScreen: React.FC = () => {
         </TouchableOpacity>
       </Modal>
     </View>
+    </BrandedScreenBackground>
   );
 };
 
@@ -276,16 +280,59 @@ const createStyles = (colors: Colors) => StyleSheet.create({
   title: {
     ...headerTitle
   },
-  legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: ui.spacingMd,
-    flexWrap: 'wrap',
-    marginHorizontal: ui.screenPadding
+  legendCard: {
+    marginHorizontal: ui.screenPadding,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: ui.radiusLg,
+    overflow: 'hidden',
+    backgroundColor: colors.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 14,
+      },
+      android: { elevation: 5 },
+      default: {},
+    }),
   },
-  legendRow: { flexDirection: 'row', alignItems: 'center', marginRight: 16, marginBottom: 8 },
-  legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 6 },
-  legendText: { fontSize: 12, color: colors.muted },
+  legendAccent: {
+    height: 3,
+    width: '100%',
+    backgroundColor: colors.primary,
+    opacity: 0.95,
+  },
+  legendInner: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
+  },
+  legendGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: '45%',
+    flexGrow: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  legendText: { fontSize: 11, color: colors.textSecondary, fontWeight: '600', flex: 1 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -297,7 +344,19 @@ const createStyles = (colors: Colors) => StyleSheet.create({
     borderRadius: ui.radiusLg,
     padding: ui.spacingLg,
     width: '85%',
-    maxWidth: 320
+    maxWidth: 320,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.06)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.2,
+        shadowRadius: 24,
+      },
+      android: { elevation: 8 },
+      default: {},
+    }),
   },
   modalTitle: {
     fontSize: 16,

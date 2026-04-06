@@ -17,23 +17,9 @@ import { EffectService } from './effectService';
 import { MarketService } from './marketService';
 import { WeeklyRewardService } from './weeklyRewardService';
 
-const DAILY_MAX_POINTS = 20;
-const DAILY_BONUS_POINTS = 0;
+const DAILY_MAX_POINTS = 18;
 const SESSION_BR = 5;
-const DAILY_BONUS_BR = 10;
 
-const STREAK_BONUSES: Record<number, number> = {
-  3: 15,
-  7: 30,
-  30: 100
-};
-
-const STREAK_BR_BONUSES: Record<number, number> = {
-  3: 10,
-  7: 20
-};
-
-const LATE_THRESHOLD_MS = 60 * 60 * 1000; // 1 saat
 const EARLY_START_WINDOW_MS = 60 * 60 * 1000; // Seans saatinden en fazla 1 saat once
 
 const toLocalScheduledMs = (dateStr: string, timeStr: string): number | null => {
@@ -42,33 +28,6 @@ const toLocalScheduledMs = (dateStr: string, timeStr: string): number | null => 
   if (!year || !month || !day) return null;
   const ms = new Date(year, month - 1, day, hour || 0, minute || 0, 0).getTime();
   return Number.isNaN(ms) ? null : ms;
-};
-
-/** Seans planlanan saatten 1 saatten fazla geç tamamlandıysa true. Yerel saatle karşılaştırır. */
-const isSessionCompletedLate = (
-  session: { date: string; sessionType: SessionType; completedAt?: number; scheduledTime?: string },
-  user: { morningTime?: string; middayTime?: string; eveningTime?: string }
-): boolean => {
-  try {
-    const fallbackTime = session.sessionType === 'morning'
-      ? (user.morningTime ?? '08:00')
-      : session.sessionType === 'midday'
-        ? (user.middayTime ?? '14:00')
-        : (user.eveningTime ?? '21:00');
-    const timeStr = session.scheduledTime ?? fallbackTime;
-    const parts = session.date.split('-');
-    const [year, month, day] = parts.map(Number);
-    const timeParts = timeStr.split(':');
-    const hour = Number(timeParts[0]) || 0;
-    const minute = Number(timeParts[1]) || 0;
-    if (!year || !month || !day || parts.length < 3) return false;
-    const scheduledMs = new Date(year, month - 1, day, hour, minute, 0).getTime();
-    if (Number.isNaN(scheduledMs)) return false;
-    const completedMs = session.completedAt ?? Date.now();
-    return completedMs - scheduledMs > LATE_THRESHOLD_MS;
-  } catch {
-    return false; // Parse hatasında gecikme sayma, puan ver
-  }
 };
 
 export const BrushingService = {
@@ -138,14 +97,13 @@ export const BrushingService = {
     return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<BrushSession, 'id'>) }));
   },
 
-  /** Sabah + akşam tamamlanmış ve ikisi de vaktinde mi */
+  /** Planlı seansların tamamı tamamlanmış mı */
   isDayPerfect(sessions: BrushSession[], user: User): boolean {
     const plannedTypes = this.getPlannedSessionTypesForUser(user);
     if (plannedTypes.length === 0) return false;
     return plannedTypes.every((type) => {
       const session = sessions.find((s) => s.sessionType === type && s.status === 'completed');
-      if (!session) return false;
-      return !isSessionCompletedLate(session, user);
+      return Boolean(session);
     });
   },
 
@@ -207,15 +165,7 @@ export const BrushingService = {
     const sessionRef = doc(db, 'brushSessions', session.id);
     const userRef = doc(db, 'users', user.id);
 
-    // 1 saatten fazla geç tamamlandıysa puan ve BR verme (ama seans tamamlandı sayılır)
     const completedAt = Date.now();
-    const lateSession = {
-      date: session.date,
-      sessionType: session.sessionType,
-      scheduledTime: session.scheduledTime,
-      completedAt
-    };
-    const isLate = isSessionCompletedLate(lateSession, user);
 
     const frozen = await EffectService.hasActiveEffect(user.id, 'frozen');
     const hasDoublePoints = await EffectService.hasActiveEffect(user.id, 'double_points');
@@ -223,11 +173,9 @@ export const BrushingService = {
     const pointMultiplier = hasDoublePoints ? 2 : 1;
     const extraMultiplier = Number(weeklyBuff?.meta?.multiplier ?? 1);
     const baseSessionPoints = this.getSessionPointsForUser(user);
-    const pointsToGrant = isLate || frozen ? 0 : Math.round(baseSessionPoints * pointMultiplier * extraMultiplier);
+    const pointsToGrant = frozen ? 0 : Math.round(baseSessionPoints * pointMultiplier * extraMultiplier);
 
-    // Comeback mekanigi: dusuk puanli kullanicilar ufak BR destegi alir. Geç tamamlanmışsa BR yok.
-    const comebackBr = isLate ? 0 : (user.points ?? 0) < 100 ? 2 : 0;
-    const brToAdd = isLate ? 0 : SESSION_BR + comebackBr;
+    const brToAdd = SESSION_BR;
     let gainedPoints = pointsToGrant;
     let gainedBr = brToAdd;
 
@@ -237,7 +185,7 @@ export const BrushingService = {
       pointsEarned: pointsToGrant
     });
 
-    // Kullanıcıya seans puanı ekle (geç tamamlanmışsa ekleme)
+    // Kullanıcıya seans puanı ekle
     if (pointsToGrant > 0) {
       await updateDoc(userRef, { points: increment(pointsToGrant) });
       try {
@@ -275,7 +223,7 @@ export const BrushingService = {
       }
     }
 
-    // Gün içindeki iki seans da tamamlandı mı ve ikisi de vaktinde mi kontrol et
+    // Gün içindeki planlı seansların tamamlanıp tamamlanmadığını kontrol et
     const todaySessions = await this.getTodaySessions(user.id);
     const plannedTypes = this.getPlannedSessionTypesForUser(user);
     const plannedSessions = plannedTypes
@@ -283,100 +231,29 @@ export const BrushingService = {
       .filter((s): s is BrushSession => Boolean(s));
     const allCompleted = plannedSessions.length === plannedTypes.length
       && plannedSessions.every((s) => s.status === 'completed');
-    const allOnTime = allCompleted && plannedSessions.every((s) => !isSessionCompletedLate(s, user));
 
-    if (allCompleted && allOnTime) {
-      // Günlük bonus daha önce uygulanmadıysa uygula (sadece ikisi de vaktinde tamamlandıysa)
+    if (allCompleted) {
+      // Gün kapanış ödülleri aynı gün içinde yalnızca bir kez işlensin.
       const bonusCarrier = plannedSessions[plannedSessions.length - 1];
       if (bonusCarrier && !bonusCarrier.dayBonusApplied) {
-        if (DAILY_BONUS_POINTS > 0) {
-          await updateDoc(userRef, { points: increment(DAILY_BONUS_POINTS) });
-          gainedPoints += DAILY_BONUS_POINTS;
-          await WeeklyRewardService.addWeeklyPoints({
-            groupId: user.groupId,
-            userId: user.id,
-            username: user.username,
-            streak: user.streak ?? 0,
-            points: DAILY_BONUS_POINTS,
-          });
-        }
-        await InventoryService.addBrScore(user.id, DAILY_BONUS_BR);
-        gainedBr += DAILY_BONUS_BR;
+        // Streak: Bugün tüm görevler tamamlandıysa artar; eksik gün varsa zincir kırılır.
+        const userSnap = await getDoc(userRef);
+        const fresh = userSnap.data() as User | undefined;
+        const currentStreak = Math.max(0, fresh?.streak ?? user.streak ?? 0);
+
+        const yesterdaySessions = await this.getSessionsForDate(user.id, yesterdayKey());
+        const yesterdayPlannedTypes = this.getPlannedSessionTypesForUser(user);
+        const yesterdayAllCompleted = yesterdayPlannedTypes.length > 0
+          && yesterdayPlannedTypes.every((type) =>
+            yesterdaySessions.some((s) => s.sessionType === type && s.status === 'completed')
+          );
+
+        const newStreak = yesterdayAllCompleted ? currentStreak + 1 : 0;
+        await updateDoc(userRef, { streak: newStreak, streakPenaltyMode: false });
+
         await updateDoc(doc(db, 'brushSessions', bonusCarrier.id), {
           dayBonusApplied: true
         });
-
-        // Streak: kırılma → 0 + ceza modu; ceza -1/-2/-3; -3 sonrası 0 ve normal artış
-        const userSnap = await getDoc(userRef);
-        const fresh = userSnap.data() as User | undefined;
-        let S = fresh?.streak ?? user.streak ?? 0;
-        let P = Boolean(fresh?.streakPenaltyMode);
-
-        const yesterdaySessions = await this.getSessionsForDate(user.id, yesterdayKey());
-        const yesterdayPerfect = this.isDayPerfect(yesterdaySessions, user);
-
-        const yesterdayCompletedCount = yesterdaySessions.filter(
-          (s) => s.status === 'completed'
-        ).length;
-        const yesterdayNothingCompleted = yesterdayCompletedCount === 0;
-
-        let yesterdayPerfectEffective = yesterdayPerfect;
-        if (!yesterdayPerfect && S === 0 && !P && yesterdayNothingCompleted) {
-          yesterdayPerfectEffective = true;
-        }
-
-        if (!yesterdayPerfect && S > 0) {
-          const saver = await EffectService.hasActiveEffect(user.id, 'streak_saver');
-          if (saver) {
-            await EffectService.consumeOneUse(user.id, 'streak_saver');
-            yesterdayPerfectEffective = true;
-          } else {
-            S = 0;
-            P = true;
-            await updateDoc(userRef, { streak: 0, streakPenaltyMode: true });
-          }
-        }
-
-        let newStreak: number;
-        let newP = P;
-
-        if (P) {
-          if (S === 0) {
-            newStreak = -1;
-          } else if (S < 0) {
-            if (S === -3) {
-              newStreak = 0;
-              newP = false;
-            } else {
-              newStreak = S - 1;
-            }
-          } else {
-            newStreak = S + 1;
-            newP = false;
-          }
-        } else if (S < 0) {
-          newStreak = 0;
-        } else if (yesterdayPerfectEffective) {
-          newStreak = S + 1;
-        } else {
-          newStreak = S;
-        }
-
-        await updateDoc(userRef, { streak: newStreak, streakPenaltyMode: newP });
-
-        // Streak bonusları (yalnızca pozitif milestone)
-        if (newStreak > 0) {
-          const streakBonus = STREAK_BONUSES[newStreak];
-          if (streakBonus) {
-            await updateDoc(userRef, { points: increment(streakBonus) });
-            gainedPoints += streakBonus;
-          }
-          const streakBrBonus = STREAK_BR_BONUSES[newStreak];
-          if (streakBrBonus) {
-            await InventoryService.addBrScore(user.id, streakBrBonus);
-            gainedBr += streakBrBonus;
-          }
-        }
       }
     }
     return { points: gainedPoints, br: gainedBr };

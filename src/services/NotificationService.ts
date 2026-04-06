@@ -116,6 +116,13 @@ const cancelStoredSessionReminders = async (
   await AsyncStorage.removeItem(REMINDER_KEY(userId, date, sessionType));
 };
 
+const muteSessionForToday = async (
+  userId: string,
+  sessionType: SessionType
+): Promise<void> => {
+  await AsyncStorage.setItem(COMPLETED_SESSION_MUTE_KEY(userId, todayKey(), sessionType), '1');
+};
+
 const shouldSuppressNotification = async (data: unknown): Promise<boolean> => {
   if (!data || typeof data !== 'object') return false;
   const payload = data as { userId?: unknown; sessionType?: unknown };
@@ -264,7 +271,7 @@ export const NotificationService = {
     const scheduleSession = async (sessionType: SessionType, timeStr: string) => {
       const [h, m] = timeStr.split(':').map(Number);
       const baseMin = h * 60 + m;
-      const offsets = [0, 15, 30, 45];
+      const offsets = [0, 15, 30, 45, 60];
       const ids: string[] = [];
       const configs: { title: string; body: string }[] = [
         {
@@ -275,11 +282,12 @@ export const NotificationService = {
               ? t('notifMiddayBody', lang)
               : t('notifEveningBody', lang)
         },
+        { title: t('notifReminderTitle', lang), body: t('notifReminder45Body', lang) },
         { title: t('notifReminderTitle', lang), body: t('notifReminder30Body', lang) },
         { title: t('notifReminderTitle', lang), body: t('notifReminder15Body', lang) },
         { title: t('notifMissedTitle', lang), body: t('notifMissedBody', lang) }
       ];
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 5; i++) {
         const totalMin = baseMin + offsets[i];
         const hour = Math.floor(totalMin / 60) % 24;
         const minute = totalMin % 60;
@@ -341,7 +349,7 @@ export const NotificationService = {
   async cancelMissedReminder(userId: string, sessionType: SessionType): Promise<void> {
     // Daily tekrar eden bildirimleri tamamen silmeyelim; sadece bugünü susturalım.
     // Aksi halde kullanıcı bir kez tamamlayınca sonraki günlerin hatırlatmaları da kaybolur.
-    await AsyncStorage.setItem(COMPLETED_SESSION_MUTE_KEY(userId, todayKey(), sessionType), '1');
+    await muteSessionForToday(userId, sessionType);
   },
 
   async syncDailyBaseReminders(user: User): Promise<void> {
@@ -352,7 +360,7 @@ export const NotificationService = {
     if (prev === signature) {
       // Aynı ayarlarda bile eski sürümden kalan duplike/eksik planları toparla.
       const scheduled = await getScheduledSessionNotifications(user.id);
-      const targetCount = getPlannedSessionTypesForUser(user).length * 4;
+      const targetCount = getPlannedSessionTypesForUser(user).length * 5;
       if (scheduled.length === targetCount) return;
     }
     await this.scheduleDailyBaseReminders(user);
@@ -361,11 +369,17 @@ export const NotificationService = {
 
   /** Tekil seans hatırlatmaları (şu an kullanılmıyor) */
   async schedulePersistentReminders(userId: string, sessionType: SessionType) {
-    await this.cancelSessionReminders(userId, sessionType);
+    // No-op: günlük hatırlatmalar scheduleDailyBaseReminders ile yönetiliyor.
+    // Mute işlemi yalnızca seans gerçekten bitirildiğinde yapılır.
+    void userId;
+    void sessionType;
   },
 
   async cancelSessionReminders(userId: string, sessionType: SessionType) {
-    await cancelStoredSessionReminders(userId, sessionType);
+    // Daily tekrar eden planları silmek yerine bugünü sessize alıyoruz.
+    // Bu sayede seans tamamlandıktan sonra kalan hatırlatmalar görünmez,
+    // fakat ertesi gün aynı seans için hatırlatmalar devam eder.
+    await muteSessionForToday(userId, sessionType);
   },
 
   async scheduleToothbrushReplacementReminder(args: {
